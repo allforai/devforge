@@ -45,6 +45,10 @@ class MockLLMClient:
                 metadata={"task": request.task, "schema_name": request.schema_name},
             )
 
+        if request.task == "acceptance_evaluation":
+            output = self._acceptance_output(request)
+            return StructuredGenerationResponse(output=output, provider=self.provider_name, model=self.model_name, raw_text=str(output), metadata={"task": request.task, "schema_name": request.schema_name})
+
         return self._retry_output(request)
 
     def _concept_output(self, request: StructuredGenerationRequest) -> dict[str, object]:
@@ -176,6 +180,75 @@ class MockLLMClient:
             "non_functional_requirements": non_functional,
             "tech_choices": tech_choices,
             "ring_0_tasks": ring_0_tasks,
+        }
+
+    def _acceptance_output(self, request: StructuredGenerationRequest) -> dict[str, object]:
+        payload = request.input_payload
+        acceptance_goals: list[str] = list(payload.get("acceptance_goals", []))
+        work_package_results: list[dict] = list(payload.get("work_package_results", []))
+        design_summary: dict = payload.get("design_summary", {})
+        closure_expansion: dict | None = payload.get("closure_expansion") or None
+
+        # Determine overall status
+        has_failures = any(
+            r.get("status") in {"failed", "timed_out"} for r in work_package_results
+        )
+        all_completed = all(
+            r.get("status") in {"completed", "verified"} for r in work_package_results
+        ) if work_package_results else False
+
+        # goal_checks
+        if has_failures:
+            goal_status = "unmet"
+        elif all_completed:
+            goal_status = "met"
+        else:
+            goal_status = "partial"
+
+        goal_checks = [
+            {"goal": g, "status": goal_status, "reason": f"work package evaluation: {goal_status}"}
+            for g in acceptance_goals
+        ]
+
+        # gaps
+        gaps: list[dict] = []
+        if has_failures:
+            gaps.append({
+                "gap_id": "gap-mock-001",
+                "description": "One or more work packages failed to complete",
+                "severity": "high",
+                "attributed_domain": "#11",
+                "attributed_capability": "execution",
+                "remediation_target": "implementation",
+            })
+
+        # role_evaluations from user_flows
+        user_flows: list[dict] = list(design_summary.get("user_flows", []))
+        role_evaluations: dict[str, str] = {}
+        for flow in user_flows:
+            role = flow.get("role")
+            if role:
+                role_evaluations[role] = "approved" if all_completed else "needs_review"
+
+        # closure_density
+        closure_density: dict | None = None
+        if closure_expansion:
+            closure_density = {
+                "total_ring_0": closure_expansion.get("total_ring_0", 0),
+                "covered": closure_expansion.get("total_ring_1", 0),
+                "coverage_ratio": closure_expansion.get("coverage_ratio", 0.0),
+            }
+
+        is_production_ready = all_completed and not gaps
+        overall_score = 0.95 if is_production_ready else 0.4
+
+        return {
+            "goal_checks": goal_checks,
+            "gaps": gaps,
+            "role_evaluations": role_evaluations,
+            "closure_density": closure_density,
+            "is_production_ready": is_production_ready,
+            "overall_score": overall_score,
         }
 
     def _retry_output(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
