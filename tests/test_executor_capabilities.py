@@ -36,7 +36,7 @@ def test_unknown_executor_returns_default() -> None:
 
 
 def test_all_registered_executors_have_capabilities() -> None:
-    expected_names = {"python", "claude_code", "codex", "cline", "opencode"}
+    expected_names = {"python", "claude_code", "codex", "cline", "opencode", "topology_classifier"}
     assert set(EXECUTOR_CAPABILITIES.keys()) == expected_names
     for name in expected_names:
         cap = EXECUTOR_CAPABILITIES[name]

@@ -11,7 +11,10 @@ from typing import Any
 
 from devforge.config import apply_project_config, load_project_config, maybe_apply_fixture_project_config
 from devforge.graph.builder import run_cycle
+from devforge.onboarding import read_readme_excerpt
 from devforge.persistence import JsonStore, build_local_workspace_persistence
+from devforge.topology import WorkspaceCandidate, default_live_llm_preferences, dump_decision
+from devforge.executors import get_executor_adapter
 
 DEFAULT_RUNTIME_ROOT = ".devforge-runtime"
 DEFAULT_SNAPSHOT_FILENAME = "devforge.snapshot.json"
@@ -22,6 +25,8 @@ WORKSPACE_PROJECT_MARKERS = (
     "go.mod",
     "Cargo.toml",
     "pom.xml",
+    "Package.swift",
+    "Podfile",
     ".git",
 )
 
@@ -68,13 +73,17 @@ def _default_docs_for_root(root: Path) -> list[str]:
 
 def _discover_workspace_projects(root: Path) -> list[dict[str, str]]:
     """Discover likely child projects directly under a workspace root."""
-    projects: list[dict[str, str]] = []
+    projects: list[dict[str, Any]] = []
     for child in sorted(root.iterdir(), key=lambda path: path.name):
         if not child.is_dir():
             continue
         if child.name.startswith("."):
             continue
-        if not any((child / marker).exists() for marker in WORKSPACE_PROJECT_MARKERS):
+        markers = [marker for marker in WORKSPACE_PROJECT_MARKERS if (child / marker).exists()]
+        apple_markers = [path.name for path in child.glob("*.xcodeproj")] + [path.name for path in child.glob("*.xcworkspace")]
+        marker_match = bool(markers)
+        apple_project_match = bool(apple_markers)
+        if not marker_match and not apple_project_match:
             continue
         slug = _slugify(child.name, fallback="project")
         projects.append(
@@ -82,6 +91,8 @@ def _discover_workspace_projects(root: Path) -> list[dict[str, str]]:
                 "project_id": slug,
                 "name": child.name,
                 "repo_path": child.name,
+                "markers": markers + apple_markers,
+                "readme_excerpt": read_readme_excerpt(child),
             }
         )
     return projects
@@ -210,22 +221,164 @@ def _build_workspace_snapshot(
     root: Path,
     *,
     project_name: str | None = None,
+    llm_preferences: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build a multi-project workspace snapshot with a guardian entry project."""
+    """Build a workspace-aware snapshot using LLM business-project modeling."""
     derived_name = project_name or root.name or "Workspace"
     workspace_slug = _slugify(derived_name, fallback="workspace")
     initiative_id = f"{workspace_slug}-workspace"
     guardian_project_id = f"{workspace_slug}-guardian"
-    discovered_projects = _discover_workspace_projects(root)
-    if not discovered_projects:
-        discovered_projects = [
+    discovered_projects_raw = _discover_workspace_projects(root)
+    if not discovered_projects_raw:
+        discovered_projects_raw = [
             {
                 "project_id": f"{workspace_slug}-project",
                 "name": "primary-project",
                 "repo_path": ".",
+                "markers": [],
+                "readme_excerpt": read_readme_excerpt(root),
             }
         ]
+    candidates = [WorkspaceCandidate(**item) for item in discovered_projects_raw]
+    classifier = get_executor_adapter("topology_classifier")
+    decision = classifier.classify_workspace(
+        workspace_name=derived_name,
+        candidates=candidates,
+        llm_preferences=llm_preferences,
+    )
 
+    if decision.mode == "single_project":
+        business_project_id = decision.business_project_id or _slugify(derived_name, fallback="project")
+        docs = _default_docs_for_root(root)
+        repo_paths = sorted({path for item in decision.surfaces for path in item.get("paths", [])}) or ["."]
+        domains = [str(item.get("label") or item.get("surface_id") or "core") for item in decision.surfaces] or ["core"]
+        return {
+            "initiative": {
+                "initiative_id": initiative_id,
+                "name": decision.business_project_name,
+                "goal": "Operate this repository as one business project with multiple implementation surfaces.",
+                "status": "active",
+                "project_ids": [business_project_id],
+                "shared_concepts": [],
+                "shared_contracts": [],
+                "initiative_memory_ref": f"memory://initiative/{initiative_id}",
+                "global_acceptance_goals": [
+                    "business project map created",
+                    "implementation surfaces identified",
+                ],
+                "requirement_event_ids": [],
+                "scheduler_state": {},
+            },
+            "projects": [
+                {
+                    "project_id": business_project_id,
+                    "initiative_id": initiative_id,
+                    "parent_project_id": None,
+                    "name": decision.business_project_name,
+                    "kind": "business_project",
+                    "status": "active",
+                    "current_phase": "analysis_design",
+                    "phases": [
+                        "concept_collect",
+                        "analysis_design",
+                        "implementation",
+                        "testing",
+                        "acceptance",
+                        "requirement_patch",
+                    ],
+                    "project_archetype": "general",
+                    "domains": domains,
+                    "active_roles": [
+                        "product_manager",
+                        "execution_planner",
+                        "technical_architect",
+                        "software_engineer",
+                        "qa_engineer",
+                        "integration_owner",
+                    ],
+                    "concept_model_refs": [],
+                    "contracts": [],
+                    "pull_policy_overrides": [],
+                    "llm_preferences": {},
+                    "knowledge_preferences": {},
+                    "executor_policy_ref": None,
+                    "work_package_ids": ["wp-business-project-onboarding"],
+                    "seam_ids": [],
+                    "artifacts": {
+                        "repo_paths": repo_paths,
+                        "docs": docs,
+                    },
+                    "project_memory_ref": f"memory://project/{business_project_id}",
+                    "assumptions": [],
+                    "requirement_events": [],
+                    "children": [],
+                    "coordination_project": False,
+                    "created_at": None,
+                    "updated_at": None,
+                }
+            ],
+            "work_packages": [
+                {
+                    "work_package_id": "wp-business-project-onboarding",
+                    "initiative_id": initiative_id,
+                    "project_id": business_project_id,
+                    "phase": "analysis_design",
+                    "domain": domains[0],
+                    "role_id": "technical_architect",
+                    "title": "Business project onboarding",
+                    "goal": "Analyze the business project, map implementation surfaces, and define the first cross-surface DevForge plan.",
+                    "status": "ready",
+                    "priority": 100,
+                    "executor": "claude_code",
+                    "fallback_executors": ["codex"],
+                    "inputs": [],
+                    "deliverables": [
+                        "docs/devforge/business-project-map.md",
+                        "docs/devforge/surface-seams.md",
+                        "docs/devforge/initial-work-plan.md",
+                    ],
+                    "constraints": [
+                        "model the repository around business intent",
+                        "treat implementation directories as surfaces unless evidence suggests separate products",
+                    ],
+                    "acceptance_criteria": [
+                        "implementation surfaces are identified",
+                        "initial cross-surface work plan is proposed",
+                    ],
+                    "depends_on": [],
+                    "blocks": [],
+                    "related_seams": [],
+                    "assumptions": [],
+                    "artifacts_created": [],
+                    "findings": [],
+                    "handoff_notes": list(decision.reasoning),
+                    "attempt_count": 0,
+                    "max_attempts": 3,
+                    "created_at": None,
+                    "updated_at": None,
+                }
+            ],
+            "executor_policies": [],
+            "requirement_events": [],
+            "seams": [],
+            "workspace_modeling": dump_decision(decision),
+        }
+
+    discovered_projects = [
+        {
+            "project_id": str(item.get("project_id")),
+            "name": str(item.get("label") or item.get("project_id")),
+            "repo_path": str((item.get("paths") or ["."])[0]),
+        }
+        for item in decision.projects
+    ] or [
+        {
+            "project_id": item.project_id,
+            "name": item.name,
+            "repo_path": item.repo_path,
+        }
+        for item in candidates
+    ]
     project_ids = [guardian_project_id] + [item["project_id"] for item in discovered_projects]
     projects: list[dict[str, Any]] = [
         {
@@ -391,6 +544,7 @@ def _build_workspace_snapshot(
         "executor_policies": [],
         "requirement_events": [],
         "seams": [],
+        "workspace_modeling": dump_decision(decision),
     }
 
 
@@ -406,6 +560,23 @@ def _build_init_project_config(project_id: str) -> dict[str, Any]:
                 },
                 "pull_policy_overrides": [],
             }
+        }
+    }
+
+
+def _build_workspace_project_config(project_ids: list[str]) -> dict[str, Any]:
+    """Build starter project config for all discovered workspace projects."""
+    return {
+        "projects": {
+            project_id: {
+                "llm_preferences": {},
+                "knowledge_preferences": {
+                    "preferred_ids": [],
+                    "excluded_ids": [],
+                },
+                "pull_policy_overrides": [],
+            }
+            for project_id in project_ids
         }
     }
 
@@ -431,12 +602,24 @@ def initialize_project(
         raise FileExistsError(f"refusing to overwrite existing files: {joined}")
 
     snapshot = (
-        _build_workspace_snapshot(root_path, project_name=project_name)
+        _build_workspace_snapshot(
+            root_path,
+            project_name=project_name,
+            llm_preferences=default_live_llm_preferences(root_path),
+        )
         if workspace_mode
         else _build_single_project_snapshot(root_path, project_name=project_name)
     )
     primary_project_id = snapshot["projects"][0]["project_id"]
-    project_config = _build_init_project_config(primary_project_id)
+    project_config = (
+        _build_workspace_project_config(
+            [item["project_id"] for item in snapshot["projects"]]
+            if snapshot.get("workspace_modeling", {}).get("mode") == "workspace"
+            else [primary_project_id]
+        )
+        if workspace_mode
+        else _build_init_project_config(primary_project_id)
+    )
 
     snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     project_config_path.write_text(json.dumps(project_config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -451,8 +634,9 @@ def initialize_project(
             f"--persistence-root {runtime_root.relative_to(root_path)}"
         ),
         "project_id": primary_project_id,
-        "mode": "workspace" if workspace_mode else "project",
-        "discovered_projects": [item["project_id"] for item in snapshot["projects"][1:]] if workspace_mode else [],
+        "mode": snapshot.get("workspace_modeling", {}).get("mode", "workspace") if workspace_mode else "project",
+        "discovered_projects": [item["project_id"] for item in _discover_workspace_projects(root_path)] if workspace_mode else [],
+        "workspace_modeling": snapshot.get("workspace_modeling"),
     }
 
 

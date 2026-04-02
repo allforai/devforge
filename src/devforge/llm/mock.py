@@ -7,6 +7,66 @@ from dataclasses import dataclass
 from .models import StructuredGenerationRequest, StructuredGenerationResponse
 
 
+def _shared_prefix(parts: list[str]) -> str:
+    if not parts:
+        return ""
+    prefix = parts[0]
+    for item in parts[1:]:
+        while prefix and not item.startswith(prefix):
+            prefix = prefix[:-1]
+        if not prefix:
+            break
+    return prefix.rstrip("-_ ")
+
+
+def _mock_workspace_decision(workspace_name: str, candidates: list[dict[str, object]]) -> dict[str, object]:
+    names = [str(item.get("name", "")) for item in candidates]
+    shared_prefix = _shared_prefix(names)
+    looks_like_surfaces = all(
+        any(token in name.lower() for token in ("api", "admin", "ios", "android", "web", "server", "client"))
+        for name in names
+    ) if names else False
+    if shared_prefix and looks_like_surfaces:
+        surfaces = []
+        for item in candidates:
+            surface_label = str(item.get("name", "")).replace(shared_prefix, "").strip("-_ ") or str(item.get("name", "surface"))
+            surfaces.append(
+                {
+                    "surface_id": str(item.get("project_id")),
+                    "label": surface_label,
+                    "paths": [str(item.get("repo_path"))],
+                }
+            )
+        return {
+            "mode": "single_project",
+            "business_project_name": workspace_name,
+            "business_project_id": shared_prefix.lower().strip("-_ ").replace("_", "-") or "project",
+            "surfaces": surfaces,
+            "projects": [],
+            "reasoning": [
+                "shared naming suggests one business product",
+                "candidate names look like implementation surfaces",
+            ],
+            "confidence": 0.82,
+        }
+    return {
+        "mode": "workspace",
+        "business_project_name": workspace_name,
+        "business_project_id": "workspace",
+        "surfaces": [],
+        "projects": [
+            {
+                "project_id": str(item.get("project_id")),
+                "label": str(item.get("name")),
+                "paths": [str(item.get("repo_path"))],
+            }
+            for item in candidates
+        ],
+        "reasoning": ["candidates appear distinct enough to keep as separate business projects"],
+        "confidence": 0.65,
+    }
+
+
 @dataclass(slots=True)
 class MockLLMClient:
     """Deterministic mock client used until a real provider is wired in."""
@@ -47,7 +107,26 @@ class MockLLMClient:
 
         if request.task == "acceptance_evaluation":
             output = self._acceptance_output(request)
-            return StructuredGenerationResponse(output=output, provider=self.provider_name, model=self.model_name, raw_text=str(output), metadata={"task": request.task, "schema_name": request.schema_name})
+            return StructuredGenerationResponse(
+                output=output,
+                provider=self.provider_name,
+                model=self.model_name,
+                raw_text=str(output),
+                metadata={"task": request.task, "schema_name": request.schema_name},
+            )
+
+        if request.task == "workspace_modeling":
+            output = _mock_workspace_decision(
+                request.input_payload.get("workspace_name", "Workspace"),
+                list(request.input_payload.get("candidates", [])),
+            )
+            return StructuredGenerationResponse(
+                output=output,
+                provider=self.provider_name,
+                model=self.model_name,
+                raw_text=str(output),
+                metadata={"task": request.task, "schema_name": request.schema_name},
+            )
 
         return self._retry_output(request)
 
@@ -144,7 +223,6 @@ class MockLLMClient:
             non_functional = ["支付幂等", "库存并发一致性", "搜索低延迟", "用户数据隔离"]
             tech_choices = {"frontend": "React", "backend": "Python/FastAPI", "database": "PostgreSQL"}
         else:
-            # gaming or any other archetype
             domains = [
                 {"domain_id": "核心机制", "name": "核心机制", "purpose": "游戏核心玩法循环",
                  "inputs": ["玩家输入"], "outputs": ["游戏状态"], "dependencies": []},
@@ -189,28 +267,14 @@ class MockLLMClient:
         design_summary: dict = payload.get("design_summary", {})
         closure_expansion: dict | None = payload.get("closure_expansion") or None
 
-        # Determine overall status
-        has_failures = any(
-            r.get("status") in {"failed", "timed_out"} for r in work_package_results
-        )
-        all_completed = all(
-            r.get("status") in {"completed", "verified"} for r in work_package_results
-        ) if work_package_results else False
-
-        # goal_checks
-        if has_failures:
-            goal_status = "unmet"
-        elif all_completed:
-            goal_status = "met"
-        else:
-            goal_status = "partial"
-
+        has_failures = any(r.get("status") in {"failed", "timed_out"} for r in work_package_results)
+        all_completed = all(r.get("status") in {"completed", "verified"} for r in work_package_results) if work_package_results else False
+        goal_status = "unmet" if has_failures else "met" if all_completed else "partial"
         goal_checks = [
             {"goal": g, "status": goal_status, "reason": f"work package evaluation: {goal_status}"}
             for g in acceptance_goals
         ]
 
-        # gaps
         gaps: list[dict] = []
         if has_failures:
             gaps.append({
@@ -222,7 +286,6 @@ class MockLLMClient:
                 "remediation_target": "implementation",
             })
 
-        # role_evaluations from user_flows
         user_flows: list[dict] = list(design_summary.get("user_flows", []))
         role_evaluations: dict[str, str] = {}
         for flow in user_flows:
@@ -230,7 +293,6 @@ class MockLLMClient:
             if role:
                 role_evaluations[role] = "approved" if all_completed else "needs_review"
 
-        # closure_density
         closure_density: dict | None = None
         if closure_expansion:
             closure_density = {

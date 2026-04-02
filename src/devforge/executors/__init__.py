@@ -1,6 +1,6 @@
 """Executor adapter exports."""
 
-from .adapters import ClaudeCodeAdapter, ClineAdapter, CodexAdapter, OpenCodeAdapter, PythonAdapter
+from .adapters import ClaudeCodeAdapter, ClineAdapter, CodexAdapter, OpenCodeAdapter, PythonAdapter, TopologyClassifierAdapter
 from .base import ClaudeCodeTaskRequest, CodexTaskRequest, ExecutorAdapter, ExecutorDispatch, SubmissionReceipt
 from .capabilities import ExecutorCapability, get_executor_capability, EXECUTOR_CAPABILITIES
 from .granularity import validate_granularity, estimate_package_tokens, suggest_split, suggest_merge, GranularityAction
@@ -15,6 +15,7 @@ for _adapter in (
     CodexAdapter(),
     ClineAdapter(),
     OpenCodeAdapter(),
+    TopologyClassifierAdapter(),
 ):
     register_executor_adapter(_adapter)
 
@@ -43,6 +44,7 @@ __all__ = [
     "PULL_POLICY_RULES",
     "PullPolicyRule",
     "SubmissionReceipt",
+    "TopologyClassifierAdapter",
     "get_executor_adapter",
     "normalize_pull_policy_overrides",
     "register_executor_adapter",

@@ -63,6 +63,14 @@ EXECUTOR_CAPABILITIES: dict[str, ExecutorCapability] = {
         supported_phases=["analysis_design"],
         max_concurrent=2,
     ),
+    "topology_classifier": ExecutorCapability(
+        name="topology_classifier",
+        context_window=200_000,
+        max_package_tokens=30_000,
+        granularity="coarse",
+        supported_phases=["analysis_design"],
+        max_concurrent=2,
+    ),
 }
 
 _DEFAULT_CAPABILITY = ExecutorCapability(

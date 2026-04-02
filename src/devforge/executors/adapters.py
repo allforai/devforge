@@ -7,6 +7,7 @@ from typing import Any
 
 from devforge.context import ContextBroker, ResolvedContext
 from devforge.state import ExecutorResult, Finding, WorkPackage
+from devforge.topology import WorkspaceCandidate, WorkspaceModelingDecision, classify_workspace_candidates
 
 from .base import ClaudeCodeTaskRequest, CodexTaskRequest, ExecutorDispatch, SubmissionReceipt
 from .payloads import format_executor_payload
@@ -272,4 +273,27 @@ class OpenCodeAdapter(BaseExecutorAdapter):
             name="opencode",
             supported_phases=("analysis_design",),
             supported_roles=("interaction_designer", "ui_designer"),
+        )
+
+
+class TopologyClassifierAdapter(BaseExecutorAdapter):
+    def __init__(self) -> None:
+        super().__init__(
+            name="topology_classifier",
+            supported_phases=("analysis_design",),
+            supported_roles=("technical_architect", "integration_owner"),
+        )
+
+    def classify_workspace(
+        self,
+        *,
+        workspace_name: str,
+        candidates: list[WorkspaceCandidate],
+        llm_preferences: dict[str, Any] | None = None,
+    ) -> WorkspaceModelingDecision:
+        """Run business-project topology classification through the shared LLM path."""
+        return classify_workspace_candidates(
+            workspace_name=workspace_name,
+            candidates=candidates,
+            llm_preferences=llm_preferences,
         )

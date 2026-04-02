@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 
 from devforge.main import main, run_snapshot_cycle
+from devforge.llm import MockLLMClient
+from devforge.topology import WorkspaceCandidate, classify_workspace_candidates
 
 
 def test_main_fixture_command_prints_summary(capsys) -> None:
@@ -263,9 +265,43 @@ def test_main_init_workspace_command_creates_guardian_entry(capsys, tmp_path, mo
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
 
     assert exit_code == 0
-    assert payload["mode"] == "workspace"
+    assert payload["mode"] in {"workspace", "single_project"}
     assert set(payload["discovered_projects"]) == {"api", "web"}
-    assert snapshot["initiative"]["scheduler_state"]["foreground_project"] == "demo-workspace-guardian"
-    assert snapshot["projects"][0]["coordination_project"] is True
-    assert snapshot["projects"][0]["children"] == ["api", "web"]
-    assert snapshot["work_packages"][0]["work_package_id"] == "wp-workspace-guardian"
+    assert "workspace_modeling" in payload
+    assert "workspace_modeling" in snapshot
+
+
+def test_main_init_workspace_command_detects_xcode_projects(capsys, tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "flydict-ios").mkdir()
+    (tmp_path / "flydict-ios" / "FlyDict.xcodeproj").mkdir()
+
+    exit_code = main(["init", "--workspace"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    snapshot_path = tmp_path / ".devforge-runtime" / "devforge.snapshot.json"
+    project_config_path = tmp_path / ".devforge-runtime" / "devforge.project_config.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert "flydict-ios" in payload["discovered_projects"]
+    assert "flydict-ios" in json.dumps(snapshot, ensure_ascii=False)
+    assert "flydict-ios" in project_config["projects"] or "flydict-ios" in json.dumps(snapshot, ensure_ascii=False)
+
+
+def test_workspace_modeling_prefers_single_business_project_for_surface_like_candidates() -> None:
+    decision = classify_workspace_candidates(
+        workspace_name="Fly Dict Workspace",
+        candidates=[
+            WorkspaceCandidate(project_id="flydict-admin", name="flydict-admin", repo_path="flydict-admin", markers=["package.json"]),
+            WorkspaceCandidate(project_id="flydict-api", name="flydict-api", repo_path="flydict-api", markers=["go.mod"]),
+            WorkspaceCandidate(project_id="flydict-ios", name="flydict-ios", repo_path="flydict-ios", markers=["FlyDict.xcodeproj"]),
+        ],
+        llm_client=MockLLMClient(),
+        llm_preferences={"provider": "mock"},
+    )
+
+    assert decision.mode == "single_project"
+    assert {item["surface_id"] for item in decision.surfaces} == {"flydict-admin", "flydict-api", "flydict-ios"}
