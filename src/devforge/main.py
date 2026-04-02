@@ -643,7 +643,7 @@ def initialize_project(
 def build_cli_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for local orchestration runs."""
     parser = argparse.ArgumentParser(prog="devforge", description="Run one DevForge orchestration cycle.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     fixture_parser = subparsers.add_parser("fixture", help="Run a built-in fixture by name.")
     fixture_parser.add_argument("name", help="Fixture name without .json suffix, for example ecommerce_project.")
@@ -665,9 +665,14 @@ def build_cli_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint."""
+    from devforge.repl import persist_session_bundle, run_interactive_session, _runs_from_cycle, _transitions_from_cycle
+    from devforge.session import SessionState, ViewState
+
     parser = build_cli_parser()
     args = parser.parse_args(argv)
 
+    if args.command is None:
+        return run_interactive_session(Path.cwd())
     if args.command == "fixture":
         result = run_fixture_cycle(args.name)
     elif args.command == "init":
@@ -683,6 +688,29 @@ def main(argv: list[str] | None = None) -> int:
             args.path,
             project_config_path=args.project_config,
             persistence_root=args.persistence_root,
+        )
+        snapshot_path = Path(args.path).resolve()
+        root_path = snapshot_path.parent.parent if snapshot_path.name == DEFAULT_SNAPSHOT_FILENAME and snapshot_path.parent.name == DEFAULT_RUNTIME_ROOT else Path.cwd()
+        runtime = result["runtime"]
+        session = SessionState(
+            session_id=f"session-{runtime.get('active_project_id', 'project')}",
+            project_id=runtime.get("active_project_id", "project"),
+            active_phase=runtime.get("current_phase"),
+            active_feature=(result.get("selected_work_packages") or [None])[0],
+            current_node_revision_ids=list(result.get("selected_work_packages", [])),
+            recommended_next_action="Say '继续' when you want to resume from the latest cycle.",
+            active_run_ids=[item.get("execution_id", "") for item in result.get("dispatches", [])],
+            suspended_run_ids=[],
+            last_state_transition_ids=[f"transition:{item.get('execution_id')}" for item in result.get("results", [])],
+            mode="waiting_user",
+        )
+        persist_session_bundle(
+            root_path,
+            session=session,
+            view=ViewState(),
+            runs=_runs_from_cycle(result),
+            transitions=_transitions_from_cycle(result),
+            last_cycle=result,
         )
     else:
         parser.error(f"unsupported command: {args.command}")
