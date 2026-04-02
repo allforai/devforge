@@ -42,7 +42,7 @@ def apply_requirement_events(snapshot: dict[str, Any], events: list[RequirementE
         if event.patch_status == "applied":
             continue
 
-        if event.type in ("remove", "modify"):
+        if event.type in ("add", "remove", "modify"):
             for work_package in result.get("work_packages", []):
                 if work_package["work_package_id"] in event.affected_work_packages:
                     work_package["status"] = "deprecated"
