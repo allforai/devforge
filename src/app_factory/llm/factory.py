@@ -7,8 +7,13 @@ from app_factory.llm.base import LLMClient
 from .config import LLMProviderConfig
 from .google import GoogleGenAIClient
 from .http import HTTPTransport
+from .httpx_transport import HttpxTransport
 from .mock import MockLLMClient
 from .openrouter import OpenRouterClient
+
+
+def _default_live_transport() -> HttpxTransport:
+    return HttpxTransport(timeout_seconds=60.0)
 
 
 def build_llm_client(
@@ -18,20 +23,19 @@ def build_llm_client(
     api_key: str | None = None,
     transport: HTTPTransport | None = None,
 ) -> LLMClient:
-    """Build one provider-specific LLM client."""
+    """Build one provider-specific LLM client.
+
+    When no transport is provided and the provider is not mock,
+    uses HttpxTransport for real HTTP calls.
+    """
 
     if provider == "mock":
         return MockLLMClient(model_name=model)
+    live_transport = transport or _default_live_transport()
     if provider == "google":
-        kwargs = {"model_name": model, "api_key": api_key}
-        if transport is not None:
-            kwargs["transport"] = transport
-        return GoogleGenAIClient(**kwargs)
+        return GoogleGenAIClient(model_name=model, api_key=api_key, transport=live_transport)
     if provider == "openrouter":
-        kwargs = {"model_name": model, "api_key": api_key}
-        if transport is not None:
-            kwargs["transport"] = transport
-        return OpenRouterClient(**kwargs)
+        return OpenRouterClient(model_name=model, api_key=api_key, transport=live_transport)
     raise ValueError(f"Unsupported llm provider: {provider}")
 
 

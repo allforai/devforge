@@ -10,6 +10,8 @@ from app_factory.planning import llm_concept_collection_decider, llm_planning_de
 from app_factory.planning.design_generator import generate_product_design
 from app_factory.planning.design_validator import validate_design
 from app_factory.planning.closure_expander import expand_closures
+from app_factory.planning.acceptance import evaluate_acceptance
+from app_factory.planning.gap_analyzer import analyze_gaps
 from app_factory.state.design import DomainSpec, ProductDesign, UserFlow
 
 
@@ -194,4 +196,42 @@ def closure_expansion_node(
         "stopped_reason": result.stopped_reason,
         "closures": [asdict(c) for c in result.closures],
     }
+    return state
+
+
+def acceptance_and_gap_check_node(
+    state: RuntimeState,
+    *,
+    acceptance_goals: list[str] | None = None,
+    work_package_results: list[dict[str, object]] | None = None,
+    llm_client: LLMClient | None = None,
+    llm_preferences: dict[str, object] | None = None,
+) -> RuntimeState:
+    """Evaluate deliverables against acceptance goals. Set termination or replan."""
+    verdict = evaluate_acceptance(
+        project_id=state.active_project_id or "",
+        cycle_id=state.cycle_id or "",
+        acceptance_goals=acceptance_goals or [],
+        work_package_results=work_package_results or [],
+        design_summary=state.product_design or {},
+        closure_expansion=state.closure_expansion or {},
+        llm_client=llm_client,
+        llm_preferences=llm_preferences,
+    )
+    state.acceptance_verdict = {
+        "verdict_id": verdict.verdict_id,
+        "project_id": verdict.project_id,
+        "is_production_ready": verdict.is_production_ready,
+        "overall_score": verdict.overall_score,
+        "summary": verdict.summary,
+        "goal_checks": [{"goal": gc.goal, "status": gc.status, "reason": gc.reason} for gc in verdict.goal_checks],
+        "gaps": [{"gap_id": g.gap_id, "description": g.description, "severity": g.severity, "attributed_domain": g.attributed_domain, "remediation_target": g.remediation_target} for g in verdict.gaps],
+        "closure_density": {"total_ring_0": verdict.closure_density.total_ring_0, "covered": verdict.closure_density.covered, "coverage_ratio": verdict.closure_density.coverage_ratio} if verdict.closure_density else None,
+        "role_evaluations": verdict.role_evaluations,
+    }
+    if verdict.is_production_ready:
+        state.termination_signal = True
+    else:
+        gap_result = analyze_gaps(verdict)
+        state.replan_reason = f"acceptance_gaps:{gap_result.reentry_point}" if gap_result.reentry_point else "acceptance_failed"
     return state

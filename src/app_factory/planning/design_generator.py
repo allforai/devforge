@@ -35,9 +35,18 @@ def generate_product_design(
             task="product_design",
             schema_name="ProductDesign",
             instructions=(
-                "Generate a structured product design based on the concept and project. "
-                "Include domains, user flows, interaction matrix, non-functional requirements, "
-                "tech choices, and ring_0_tasks. Return only JSON."
+                "You are a product architect. Generate a structured product design from the concept. "
+                "Return JSON with these exact fields:\n"
+                '- "product_name": (string) product name\n'
+                '- "problem_statement": (string) core problem being solved\n'
+                '- "target_users": (array of strings) user roles, e.g. ["buyer", "seller", "admin"]\n'
+                '- "domains": (array of objects) each with {domain_id, name, purpose, inputs:[], outputs:[], dependencies:[]}\n'
+                '- "user_flows": (array of objects) each with {flow_id, name, role, steps:[], entry_point, exit_point}\n'
+                '- "interaction_matrix": (array of objects) each with {feature, role, frequency:"high"|"low", user_volume:"high"|"low", principle}\n'
+                '- "non_functional_requirements": (array of strings) e.g. ["支付幂等", "库存并发一致性"]\n'
+                '- "tech_choices": (object) e.g. {"frontend": "React", "backend": "Python"}\n'
+                '- "ring_0_tasks": (array of strings) core tasks that must be implemented, e.g. ["认证", "商品发布", "搜索", "下单", "支付"]\n'
+                "\nGenerate at least 3 domains, 2 user flows, 3 interaction matrix entries, and 5 ring_0_tasks."
             ),
             input_payload={
                 "concept": concept,

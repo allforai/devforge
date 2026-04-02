@@ -62,10 +62,15 @@ def evaluate_acceptance(
             task="acceptance_evaluation",
             schema_name="AcceptanceVerdict",
             instructions=(
-                "Evaluate the acceptance criteria for the current cycle. "
-                "Check each goal against the work package results. "
-                "Identify gaps and assess production readiness. "
-                "Return only JSON."
+                "You are a product acceptance evaluator. Check deliverables against goals. "
+                "Return JSON with these exact fields:\n"
+                '- "is_production_ready": (boolean) true if all goals met and no critical gaps\n'
+                '- "overall_score": (number 0-1) overall quality score\n'
+                '- "goal_checks": (array of objects) each with {goal, status:"met"|"partial"|"unmet", reason}\n'
+                '- "gaps": (array of objects) each with {gap_id, description, severity:"high"|"medium"|"low", attributed_domain, attributed_capability, remediation_target:"design"|"decomposition"|"implementation"|"testing"}\n'
+                '- "closure_density": (object) {total_ring_0, covered, coverage_ratio} from closure_expansion data\n'
+                '- "role_evaluations": (object) per-role evaluation strings, e.g. {"buyer": "流程完整"}\n'
+                '- "summary": (string) one-sentence verdict\n'
             ),
             input_payload={
                 "acceptance_goals": acceptance_goals,

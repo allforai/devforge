@@ -9,6 +9,7 @@ from .design_generator import generate_product_design
 from .design_validator import validate_design, ValidationResult
 from .closure_expander import expand_closures, ClosureExpansionResult
 from .gap_analyzer import GapAnalysisResult, analyze_gaps, attribute_gap_to_domain, generate_remediations
+from .acceptance import evaluate_acceptance
 
 __all__ = [
     "ConceptCollectionDecision",
@@ -34,4 +35,5 @@ __all__ = [
     "analyze_gaps",
     "attribute_gap_to_domain",
     "generate_remediations",
+    "evaluate_acceptance",
 ]

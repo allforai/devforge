@@ -40,6 +40,7 @@ class RuntimeState:
     closure_expansion: dict[str, object] | None = None
     needs_user_input: bool = False
     termination_signal: str | None = None
+    acceptance_verdict: dict[str, object] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "RuntimeState":

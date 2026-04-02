@@ -39,9 +39,17 @@ def llm_concept_collection_decider(
             task="concept_collection",
             schema_name="ConceptCollectionDecision",
             instructions=(
-                "Decide what concept information should be collected next. "
-                "Use project archetype, current phase, selected knowledge, and specialized knowledge. "
-                "Return only JSON."
+                "You are a product manager deciding what concept information to collect for a software project. "
+                "Based on the project archetype, current phase, and knowledge context, decide the next concept collection step. "
+                "Return JSON with these exact fields:\n"
+                '- "phase": (string) current development phase, e.g. "concept_collect"\n'
+                '- "goal": (string) one-sentence goal for this collection round\n'
+                '- "focus_areas": (array of strings) 3-5 key areas to investigate\n'
+                '- "questions": (array of strings) 2-4 specific questions to ask\n'
+                '- "required_artifacts": (array of strings) artifacts to produce\n'
+                '- "rationale": (string) why these focus areas matter\n'
+                '- "confidence": (number 0-1) confidence in this decision\n'
+                '- "notes": (array of strings) additional observations\n'
             ),
             input_payload={
                 "project": project,
