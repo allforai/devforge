@@ -6,7 +6,7 @@ from devforge.graph import RuntimeState, concept_collection_node, graph_validati
 from devforge.planning import apply_patch_operations
 from devforge.roles import ROLE_REGISTRY, get_role_spec
 from devforge.scheduler import select_workset
-from devforge.state import ExecutorPolicy, SeamState, WorkPackage
+from devforge.state import ExecutorPolicy, NodeRepartitionEvent, NodeRevision, SeamState, StateNode, WorkPackage
 
 
 def test_executor_policy_resolution_order() -> None:
@@ -37,6 +37,34 @@ def test_executor_registry_contains_core_adapters() -> None:
     assert "claude_code" in EXECUTOR_REGISTRY
     assert "codex" in EXECUTOR_REGISTRY
     assert get_executor_adapter("codex").supports_role("software_engineer") is True
+
+
+def test_state_node_revision_and_repartition_models_are_constructible() -> None:
+    node = StateNode(
+        node_id="offline-favorites",
+        node_type="feature",
+        name="Offline Favorites",
+        business_goal="Users can save and revisit words offline",
+    )
+    revision = NodeRevision(
+        revision_id="offline-favorites@v1",
+        node_id=node.node_id,
+        phase="analysis_design",
+        status="partial",
+        title="Offline Favorites",
+    )
+    event = NodeRepartitionEvent(
+        event_id="evt-1",
+        event_type="node_revised",
+        trigger_type="information_input",
+        before_revision_ids=["offline-favorites@v0"],
+        after_revision_ids=[revision.revision_id],
+        reason="new feature input refined the node scope",
+    )
+
+    assert node.lifecycle_status == "active"
+    assert revision.node_id == node.node_id
+    assert event.after_revision_ids == ["offline-favorites@v1"]
 
 
 def test_fixture_files_are_valid_json() -> None:

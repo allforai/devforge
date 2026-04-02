@@ -3,12 +3,15 @@
 from .acceptance import AcceptanceVerdict, ClosureDensityScore, GapItem, GoalCheckResult, RemediationPackage
 from .codec import decode_executor_policy, decode_initiative, decode_project, decode_requirement_event, decode_seam, decode_snapshot, decode_work_package, encode_snapshot
 from .design import ClosureItem, ClosureType, DomainSpec, InteractionMatrixEntry, ProductDesign, UserFlow
+from .node_repartition_event import NodeRepartitionEvent, RepartitionImpact
+from .node_revision import NodeLineage, NodeProgress, NodeRevision, NodeScope
 from .executor_policy import ExecutorPolicy
 from .executor_result import ExecutorResult
 from .initiative import InitiativeState
 from .project import ProjectState
 from .requirement_event import RequirementEvent
 from .seam import SeamRisk, SeamState
+from .state_node import StateNode
 from .work_package import Assumption, Finding, WorkPackage
 from .workspace import QueueState, WorkspaceState
 
@@ -37,11 +40,18 @@ __all__ = [
     "ExecutorResult",
     "Finding",
     "InitiativeState",
+    "NodeLineage",
+    "NodeProgress",
+    "NodeRepartitionEvent",
+    "NodeRevision",
+    "NodeScope",
     "ProjectState",
     "QueueState",
+    "RepartitionImpact",
     "RequirementEvent",
     "SeamRisk",
     "SeamState",
+    "StateNode",
     "WorkPackage",
     "WorkspaceState",
 ]
