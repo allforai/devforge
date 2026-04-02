@@ -8,24 +8,24 @@ allow_live: true
 provider: google
 
 # 默认模型
-model: gemini-2.5-pro
+model: gemini-3.1-pro-preview
 
-# 按任务指定模型 — 轻量任务用 flash，重要任务用 pro
+# 按任务指定模型
 tasks:
   concept_collection:
-    model: gemini-2.5-pro
+    model: gemini-3.1-pro-preview
   product_design:
-    model: gemini-2.5-pro
+    model: gemini-3.1-pro-preview
   design_validation:
-    model: gemini-2.5-flash
+    model: gemini-3-flash-preview
   acceptance_evaluation:
-    model: gemini-2.5-pro
+    model: gemini-3.1-pro-preview
   planning_and_shaping:
-    model: gemini-2.5-flash
+    model: gemini-3-flash-preview
   retry_decision:
-    model: gemini-2.5-flash
+    model: gemini-3-flash-preview
 
-# XV 多模型交叉验证 — 用不同模型家族审计同一产出物
+# XV 多模型交叉验证
 xv:
   architecture_review:
     provider: openrouter
@@ -35,7 +35,7 @@ xv:
     model: deepseek/deepseek-v3.2
   ui_review:
     provider: google
-    model: gemini-2.5-pro
+    model: gemini-3.1-pro-preview
   security_review:
     provider: openrouter
     model: openai/gpt-5.4
@@ -49,7 +49,7 @@ tools:
     enabled: true
   image_generation:
     provider: google
-    model: gemini-2.5-flash-image
+    model: gemini-3.1-flash-image-preview
   demo_data:
     provider: google
-    model: gemini-2.5-flash
+    model: gemini-3-flash-preview
