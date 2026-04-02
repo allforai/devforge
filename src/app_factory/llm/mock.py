@@ -35,6 +35,16 @@ class MockLLMClient:
                 metadata={"task": request.task, "schema_name": request.schema_name},
             )
 
+        if request.task == "product_design":
+            output = self._product_design_output(request)
+            return StructuredGenerationResponse(
+                output=output,
+                provider=self.provider_name,
+                model=self.model_name,
+                raw_text=str(output),
+                metadata={"task": request.task, "schema_name": request.schema_name},
+            )
+
         return self._retry_output(request)
 
     def _concept_output(self, request: StructuredGenerationRequest) -> dict[str, object]:
@@ -81,6 +91,91 @@ class MockLLMClient:
                 "planning decision derived from project archetype and selected knowledge",
                 "specialized focus: " + ", ".join(str(item) for item in specialized.get("focus", [])[:3]),
             ],
+        }
+
+    def _product_design_output(self, request: StructuredGenerationRequest) -> dict[str, object]:
+        payload = request.input_payload
+        project = payload.get("project", {})
+        concept = payload.get("concept", {})
+        archetype = project.get("project_archetype", "")
+        name = project.get("name") or "Product"
+
+        if archetype == "ecommerce":
+            domains = [
+                {"domain_id": "用户", "name": "用户", "purpose": "用户注册、认证与账户管理",
+                 "inputs": ["注册信息", "登录凭证"], "outputs": ["用户令牌", "用户资料"], "dependencies": []},
+                {"domain_id": "商品", "name": "商品", "purpose": "商品发布、搜索与详情展示",
+                 "inputs": ["商品信息"], "outputs": ["商品列表", "商品详情"], "dependencies": ["用户"]},
+                {"domain_id": "交易", "name": "交易", "purpose": "订单创建与状态流转",
+                 "inputs": ["商品", "买家信息"], "outputs": ["订单"], "dependencies": ["商品", "用户"]},
+                {"domain_id": "支付", "name": "支付", "purpose": "支付处理与幂等保障",
+                 "inputs": ["订单"], "outputs": ["支付结果"], "dependencies": ["交易"]},
+                {"domain_id": "互动", "name": "互动", "purpose": "评价、私信与社区互动",
+                 "inputs": ["用户", "订单"], "outputs": ["评价", "消息"], "dependencies": ["用户", "交易"]},
+                {"domain_id": "管理", "name": "管理", "purpose": "后台管理与内容审核",
+                 "inputs": ["用户", "商品", "订单"], "outputs": ["审核结果", "运营报告"], "dependencies": ["用户", "商品", "交易"]},
+            ]
+            user_flows = [
+                {"flow_id": "F-001", "name": "购买流程", "role": "buyer",
+                 "steps": ["浏览", "搜索", "加购", "结算", "支付", "确认收货"],
+                 "entry_point": "首页", "exit_point": "订单确认页"},
+                {"flow_id": "F-002", "name": "发布流程", "role": "seller",
+                 "steps": ["填写商品信息", "上传图片", "定价", "发布"],
+                 "entry_point": "发布入口", "exit_point": "商品详情页"},
+                {"flow_id": "F-003", "name": "审核流程", "role": "admin",
+                 "steps": ["查看待审列表", "审核商品", "处理举报"],
+                 "entry_point": "管理后台", "exit_point": "审核完成"},
+            ]
+            interaction_matrix = [
+                {"feature": "浏览商品", "role": "buyer", "frequency": "high", "user_volume": "high",
+                 "principle": "极致效率、零学习成本、容错性高"},
+                {"feature": "用户注册", "role": "buyer", "frequency": "low", "user_volume": "high",
+                 "principle": "引导式、步骤清晰"},
+                {"feature": "订单审核", "role": "admin", "frequency": "high", "user_volume": "low",
+                 "principle": "信息密度高、批量操作"},
+                {"feature": "权限配置", "role": "admin", "frequency": "low", "user_volume": "low",
+                 "principle": "安全确认、操作可撤销"},
+            ]
+            ring_0_tasks = ["用户注册", "商品发布", "商品搜索", "下单", "支付", "评价"]
+            non_functional = ["支付幂等", "库存并发一致性", "搜索低延迟", "用户数据隔离"]
+            tech_choices = {"frontend": "React", "backend": "Python/FastAPI", "database": "PostgreSQL"}
+        else:
+            # gaming or any other archetype
+            domains = [
+                {"domain_id": "核心机制", "name": "核心机制", "purpose": "游戏核心玩法循环",
+                 "inputs": ["玩家输入"], "outputs": ["游戏状态"], "dependencies": []},
+                {"domain_id": "地图", "name": "地图", "purpose": "场景与地形管理",
+                 "inputs": ["场景配置"], "outputs": ["渲染数据"], "dependencies": ["核心机制"]},
+                {"domain_id": "战斗", "name": "战斗", "purpose": "战斗逻辑与伤害结算",
+                 "inputs": ["玩家行为", "敌方状态"], "outputs": ["战斗结果"], "dependencies": ["核心机制"]},
+                {"domain_id": "经济", "name": "经济", "purpose": "道具、货币与奖励系统",
+                 "inputs": ["战斗结果"], "outputs": ["奖励", "道具"], "dependencies": ["战斗"]},
+            ]
+            user_flows = [
+                {"flow_id": "F-001", "name": "对战流程", "role": "player",
+                 "steps": ["匹配", "进入房间", "游戏中", "结算"],
+                 "entry_point": "主菜单", "exit_point": "结算页"},
+            ]
+            interaction_matrix = [
+                {"feature": "游戏对战", "role": "player", "frequency": "high", "user_volume": "high",
+                 "principle": "低延迟、响应即时"},
+                {"feature": "道具购买", "role": "player", "frequency": "low", "user_volume": "high",
+                 "principle": "清晰展示、防误触"},
+            ]
+            ring_0_tasks = ["匹配对战", "战斗结算", "道具系统", "排行榜"]
+            non_functional = ["实时延迟<50ms", "高并发连接", "反作弊"]
+            tech_choices = {"engine": "Unity", "backend": "Go", "networking": "WebSocket"}
+
+        return {
+            "product_name": name,
+            "problem_statement": concept.get("problem_statement", f"Build {name}"),
+            "target_users": list(concept.get("target_users", [])),
+            "domains": domains,
+            "user_flows": user_flows,
+            "interaction_matrix": interaction_matrix,
+            "non_functional_requirements": non_functional,
+            "tech_choices": tech_choices,
+            "ring_0_tasks": ring_0_tasks,
         }
 
     def _retry_output(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
