@@ -4,3 +4,8 @@ __pycache__/
 .venv/
 .uv-cache/
 src/*.egg-info/
+
+# Secrets
+.env
+.env.*
+!.env.example

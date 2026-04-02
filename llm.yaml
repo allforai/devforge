@@ -1,19 +1,19 @@
-# LLM 配置文件
-# 按任务路由不同模型，性价比最优
+# App Factory 配置文件
+# Keys 从 .env 加载，不要在这里写密钥
 #
 # provider: google | openrouter | mock
-# 环境变量: GEMINI_API_KEY, OPENROUTER_API_KEY
+# 环境变量: GEMINI_API_KEY, OPENROUTER_API_KEY, BRAVE_API_KEY
 
 allow_live: true
 provider: google
 
-# 默认模型（兜底）
-model: gemini-2.5-flash
+# 默认模型
+model: gemini-2.5-pro
 
-# 按任务指定模型 — 重要任务用更强的模型
+# 按任务指定模型 — 轻量任务用 flash，重要任务用 pro
 tasks:
   concept_collection:
-    model: gemini-2.5-flash
+    model: gemini-2.5-pro
   product_design:
     model: gemini-2.5-pro
   design_validation:
@@ -25,11 +25,31 @@ tasks:
   retry_decision:
     model: gemini-2.5-flash
 
-# 混用不同模型家族示例（取消注释即可启用）：
-# tasks:
-#   product_design:
-#     provider: openrouter
-#     model: anthropic/claude-sonnet-4
-#   acceptance_evaluation:
-#     provider: openrouter
-#     model: anthropic/claude-sonnet-4
+# XV 多模型交叉验证 — 用不同模型家族审计同一产出物
+xv:
+  architecture_review:
+    provider: openrouter
+    model: openai/gpt-5.4
+  data_model_review:
+    provider: openrouter
+    model: deepseek/deepseek-v3.2
+  ui_review:
+    provider: google
+    model: gemini-2.5-pro
+  security_review:
+    provider: openrouter
+    model: openai/gpt-5.4
+  code_review:
+    provider: openrouter
+    model: anthropic/claude-opus-4.6
+
+# 工具配置
+tools:
+  brave_search:
+    enabled: true
+  image_generation:
+    provider: google
+    model: gemini-2.5-flash-image
+  demo_data:
+    provider: google
+    model: gemini-2.5-flash

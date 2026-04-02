@@ -1,4 +1,4 @@
-"""Load LLM configuration from llm.yaml."""
+"""Load LLM and tools configuration from llm.yaml + .env."""
 
 from __future__ import annotations
 
@@ -12,6 +12,22 @@ try:
     _HAS_YAML = True
 except ImportError:
     _HAS_YAML = False
+
+
+def load_dotenv(env_path: str | Path | None = None) -> None:
+    """Load .env file into os.environ. No dependency needed."""
+    path = Path(env_path) if env_path else Path.cwd() / ".env"
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 _DEFAULT_CONFIG_PATHS = [
@@ -100,6 +116,10 @@ def load_llm_config(
     2. Search for llm.yaml in search_dir or cwd
     3. Return empty dict (mock mode)
     """
+    # Auto-load .env for API keys
+    env_dir = Path(search_dir) if search_dir else Path.cwd()
+    load_dotenv(env_dir / ".env")
+
     path: Path | None = None
     if config_path:
         path = Path(config_path)
@@ -145,5 +165,26 @@ def _normalize_config(raw: dict[str, Any]) -> dict[str, Any]:
                     prefs[f"{task_name}_api_key"] = task_config["api_key"]
             elif isinstance(task_config, str):
                 prefs[f"{task_name}_model"] = task_config
+
+    # XV cross-validation routes
+    xv = raw.get("xv", {})
+    if isinstance(xv, dict):
+        prefs["xv_routes"] = {}
+        for domain, xv_config in xv.items():
+            if isinstance(xv_config, dict):
+                prefs["xv_routes"][domain] = (
+                    xv_config.get("provider", "openrouter"),
+                    xv_config.get("model", ""),
+                )
+
+    # Tool configurations
+    tools = raw.get("tools", {})
+    if isinstance(tools, dict):
+        prefs["tools"] = {}
+        for tool_name, tool_config in tools.items():
+            if isinstance(tool_config, dict):
+                prefs["tools"][tool_name] = dict(tool_config)
+            elif isinstance(tool_config, str):
+                prefs["tools"][tool_name] = {"enabled": tool_config.lower() == "true"}
 
     return prefs
