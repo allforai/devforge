@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-app-factory = "app_factory.main:main"
+devforge = "app_factory.main:main"
 
 [project.optional-dependencies]
 dev = [

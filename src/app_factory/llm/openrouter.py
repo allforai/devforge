@@ -17,7 +17,7 @@ class OpenRouterClient:
 
     model_name: str
     api_key: str | None = None
-    app_name: str = "app-factory"
+    app_name: str = "devforge"
     site_url: str | None = None
     base_url: str = "https://openrouter.ai/api/v1"
     provider_name: str = "openrouter"

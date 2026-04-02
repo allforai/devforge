@@ -30,8 +30,8 @@ uv sync --extra dev
 直接运行内置 fixture：
 
 ```bash
-app-factory fixture game_project
-app-factory fixture ecommerce_project --json
+devforge fixture game_project
+devforge fixture ecommerce_project --json
 ```
 
 也可以不用 console script，直接走模块入口：
@@ -46,19 +46,19 @@ python -m app_factory.main fixture ecommerce_project --json
 运行自己的 snapshot：
 
 ```bash
-app-factory snapshot ./my_snapshot.json
+devforge snapshot ./my_snapshot.json
 ```
 
 给 snapshot 叠一份项目配置：
 
 ```bash
-app-factory snapshot ./my_snapshot.json --project-config ./my_project_config.json
+devforge snapshot ./my_snapshot.json --project-config ./my_project_config.json
 ```
 
 启用本地持久化工作区：
 
 ```bash
-app-factory snapshot ./my_snapshot.json --persistence-root ./.runtime --json
+devforge snapshot ./my_snapshot.json --persistence-root ./.runtime --json
 ```
 
 `--persistence-root` 会创建：

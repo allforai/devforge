@@ -39,7 +39,7 @@ def run_snapshot_cycle(
 
 def build_cli_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for local orchestration runs."""
-    parser = argparse.ArgumentParser(prog="app_factory", description="Run one App Factory orchestration cycle.")
+    parser = argparse.ArgumentParser(prog="devforge", description="Run one App Factory orchestration cycle.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     fixture_parser = subparsers.add_parser("fixture", help="Run a built-in fixture by name.")
