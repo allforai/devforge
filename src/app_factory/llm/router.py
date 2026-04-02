@@ -33,28 +33,35 @@ def build_task_llm_client(
 
 
 def _model_for_task(task: str, preferences: dict[str, Any]) -> str | None:
-    key_by_task = {
+    # Check task-specific key: e.g. "product_design_model" or legacy "concept_model"
+    task_model_key = f"{task}_model"
+    if preferences.get(task_model_key):
+        return str(preferences[task_model_key])
+    legacy_keys = {
         "concept_collection": "concept_model",
         "planning_and_shaping": "planning_model",
         "retry_decision": "retry_model",
     }
-    specific_key = key_by_task.get(task)
-    if specific_key and preferences.get(specific_key):
-        return str(preferences[specific_key])
+    legacy_key = legacy_keys.get(task)
+    if legacy_key and preferences.get(legacy_key):
+        return str(preferences[legacy_key])
     if preferences.get("model"):
         return str(preferences["model"])
     return None
 
 
 def _provider_for_task(task: str, preferences: dict[str, Any]) -> str:
-    key_by_task = {
+    task_provider_key = f"{task}_provider"
+    if preferences.get(task_provider_key):
+        return str(preferences[task_provider_key])
+    legacy_keys = {
         "concept_collection": "concept_provider",
         "planning_and_shaping": "planning_provider",
         "retry_decision": "retry_provider",
     }
-    specific_key = key_by_task.get(task)
-    if specific_key and preferences.get(specific_key):
-        return str(preferences[specific_key])
+    legacy_key = legacy_keys.get(task)
+    if legacy_key and preferences.get(legacy_key):
+        return str(preferences[legacy_key])
     return str(preferences.get("provider", "mock"))
 
 

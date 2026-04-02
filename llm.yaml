@@ -1,0 +1,35 @@
+# LLM 配置文件
+# 按任务路由不同模型，性价比最优
+#
+# provider: google | openrouter | mock
+# 环境变量: GEMINI_API_KEY, OPENROUTER_API_KEY
+
+allow_live: true
+provider: google
+
+# 默认模型（兜底）
+model: gemini-2.5-flash
+
+# 按任务指定模型 — 重要任务用更强的模型
+tasks:
+  concept_collection:
+    model: gemini-2.5-flash
+  product_design:
+    model: gemini-2.5-pro
+  design_validation:
+    model: gemini-2.5-flash
+  acceptance_evaluation:
+    model: gemini-2.5-pro
+  planning_and_shaping:
+    model: gemini-2.5-flash
+  retry_decision:
+    model: gemini-2.5-flash
+
+# 混用不同模型家族示例（取消注释即可启用）：
+# tasks:
+#   product_design:
+#     provider: openrouter
+#     model: anthropic/claude-sonnet-4
+#   acceptance_evaluation:
+#     provider: openrouter
+#     model: anthropic/claude-sonnet-4

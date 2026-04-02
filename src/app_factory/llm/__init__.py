@@ -9,6 +9,7 @@ from .httpx_transport import HttpxTransport
 from .mock import MockLLMClient
 from .models import StructuredGenerationRequest, StructuredGenerationResponse
 from .openrouter import OpenRouterClient
+from .config_loader import load_llm_config
 from .router import build_task_llm_client
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "build_llm_client",
     "build_llm_client_from_config",
     "build_task_llm_client",
+    "load_llm_config",
 ]
