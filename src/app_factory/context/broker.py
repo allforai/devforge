@@ -26,7 +26,7 @@ class ContextBroker:
         self.artifact_store = artifact_store
         self.memory_store = memory_store
 
-    def resolve_ref(self, ref: str, *, mode: str = "summary") -> ResolvedContext:
+    def resolve_ref(self, ref: str, *, mode: str = "summary", requester_wp_id: str | None = None) -> ResolvedContext:
         """Resolve one ref into summary/full/structured context."""
 
         if ref.startswith("knowledge://"):
@@ -37,6 +37,8 @@ class ContextBroker:
             return self._resolve_memory(ref.split("://", 1)[1], mode=mode, original_ref=ref)
         if ref.startswith("project://"):
             return self._resolve_project(ref.split("://", 1)[1], mode=mode, original_ref=ref)
+        if ref.startswith("workpackage://"):
+            return self._resolve_workpackage(ref.split("://", 1)[1], mode=mode, original_ref=ref, requester_wp_id=requester_wp_id)
         return self._resolve_knowledge(ref, mode=mode, original_ref=ref)
 
     def resolve_many(self, refs: list[str], *, mode: str = "summary") -> list[ResolvedContext]:
@@ -171,5 +173,58 @@ class ContextBroker:
             kind="project",
             mode=mode,
             title=project.get("name", project_id),
+            content=content,
+        )
+
+    def _resolve_workpackage(
+        self,
+        wp_id: str,
+        *,
+        mode: str,
+        original_ref: str,
+        requester_wp_id: str | None,
+    ) -> ResolvedContext:
+        """Resolve a workpackage:// ref with status-aware permission control."""
+
+        _READABLE_STATUSES = {"completed", "verified", "waiting_review"}
+
+        wp = next(
+            (item for item in self.snapshot.get("work_packages", []) if item.get("work_package_id") == wp_id),
+            None,
+        )
+        if wp is None:
+            return ResolvedContext(ref=original_ref, kind="workpackage", mode=mode, title=wp_id)
+
+        status = wp.get("status", "")
+        is_own = requester_wp_id == wp_id
+        if status not in _READABLE_STATUSES and not is_own:
+            return ResolvedContext(
+                ref=original_ref,
+                kind="workpackage",
+                mode=mode,
+                title=wp_id,
+                content="access_denied",
+            )
+
+        if mode == "structured":
+            return ResolvedContext(
+                ref=original_ref,
+                kind="workpackage",
+                mode=mode,
+                title=wp_id,
+                structured=wp,
+            )
+        if mode == "full":
+            content = json.dumps(wp, ensure_ascii=False, indent=2)
+        else:
+            content = (
+                f"{wp_id} status={status} goal={wp.get('goal', '')} "
+                f"artifacts={','.join(wp.get('artifacts_created', []))}"
+            )
+        return ResolvedContext(
+            ref=original_ref,
+            kind="workpackage",
+            mode=mode,
+            title=wp_id,
             content=content,
         )
