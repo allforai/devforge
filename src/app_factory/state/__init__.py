@@ -1,5 +1,6 @@
 """Core state models for the orchestration kernel."""
 
+from .acceptance import AcceptanceVerdict, ClosureDensityScore, GapItem, GoalCheckResult, RemediationPackage
 from .codec import decode_executor_policy, decode_initiative, decode_project, decode_requirement_event, decode_seam, decode_snapshot, decode_work_package, encode_snapshot
 from .design import ClosureItem, ClosureType, DomainSpec, InteractionMatrixEntry, ProductDesign, UserFlow
 from .executor_policy import ExecutorPolicy
@@ -12,8 +13,13 @@ from .work_package import Assumption, Finding, WorkPackage
 from .workspace import QueueState, WorkspaceState
 
 __all__ = [
+    "AcceptanceVerdict",
     "Assumption",
+    "ClosureDensityScore",
     "ClosureItem",
+    "GapItem",
+    "GoalCheckResult",
+    "RemediationPackage",
     "ClosureType",
     "DomainSpec",
     "InteractionMatrixEntry",
