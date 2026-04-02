@@ -114,7 +114,15 @@ def _build_node_packet(runtime: RuntimeState, selected: list[WorkPackage]) -> di
         constraints=primary.constraints,
         acceptance=primary.acceptance_criteria,
     )
-    return asdict(packet)
+    result = asdict(packet)
+    if primary.attempt_count > 0:
+        result["previous_attempts"] = {
+            "attempt_count": primary.attempt_count,
+            "findings": [asdict(f) for f in primary.findings] if primary.findings else [],
+            "handoff_notes": list(primary.handoff_notes),
+            "execution_history": list(primary.execution_history),
+        }
+    return result
 
 
 def _build_context_pull_manifest(
