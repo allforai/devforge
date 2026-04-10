@@ -2,6 +2,8 @@ import inspect
 import json
 import builtins
 from pathlib import Path
+from subprocess import CompletedProcess
+from unittest.mock import patch
 
 from devforge.graph.builder import CycleResult
 from devforge.main import main, run_fixture_cycle, run_snapshot_cycle
@@ -452,3 +454,50 @@ def test_run_fixture_cycle_annotated_cycle_result() -> None:
 def test_run_snapshot_cycle_annotated_cycle_result() -> None:
     hints = inspect.get_annotations(run_snapshot_cycle, eval_str=True)
     assert hints.get("return") is CycleResult
+
+
+def test_main_doctor_command_reports_blocked_executors_in_json(capsys) -> None:
+    def fake_which(name: str) -> str | None:
+        return f"/usr/local/bin/{name}"
+
+    def fake_run(command, capture_output, text, cwd):
+        if command[0] == "codex":
+            return CompletedProcess(command, 1, "", "failed to lookup address information")
+        if command[0] == "claude":
+            return CompletedProcess(command, 1, '{"result":"Not logged in · Please run /login"}', "")
+        raise AssertionError(command)
+
+    with patch("devforge.main.shutil.which", side_effect=fake_which), patch("devforge.main.subprocess.run", side_effect=fake_run):
+        exit_code = main(["doctor", "--json"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["overall_status"] == "blocked"
+    assert payload["checks"][0]["executor"] == "codex"
+    assert payload["checks"][0]["status"] == "blocked"
+    assert "network path is blocked" in payload["checks"][0]["summary"]
+    assert payload["checks"][1]["executor"] == "claude_code"
+    assert "not logged in" in payload["checks"][1]["summary"]
+
+
+def test_main_doctor_command_reports_missing_executors_in_summary_mode(capsys) -> None:
+    with patch("devforge.main.shutil.which", return_value=None):
+        exit_code = main(["doctor"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["overall_status"] == "missing"
+    assert payload["checks"] == [
+        {
+            "executor": "codex",
+            "status": "missing",
+            "summary": "codex CLI not found on PATH",
+        },
+        {
+            "executor": "claude_code",
+            "status": "missing",
+            "summary": "claude CLI not found on PATH",
+        },
+    ]

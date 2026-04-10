@@ -6,6 +6,8 @@ import argparse
 import json
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
 from typing import Any, Callable
 
@@ -58,6 +60,112 @@ def run_snapshot_cycle(
         snapshot = apply_project_config(snapshot, load_project_config(project_config_path))
     persistence = build_local_workspace_persistence(persistence_root) if persistence_root else None
     return run_cycle(snapshot, persistence=persistence)
+
+
+def _executor_check_result(
+    *,
+    name: str,
+    available: bool,
+    status: str,
+    summary: str,
+    command: list[str] | None = None,
+    details: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "executor": name,
+        "available": available,
+        "status": status,
+        "summary": summary,
+        "command": command or [],
+        "details": details,
+    }
+
+
+def run_executor_doctor(*, cwd: str | Path = ".") -> dict[str, Any]:
+    """Probe local executor readiness outside the orchestration graph."""
+    root = Path(cwd).resolve()
+    checks: list[dict[str, Any]] = []
+
+    codex_path = shutil.which("codex")
+    if codex_path is None:
+        checks.append(
+            _executor_check_result(
+                name="codex",
+                available=False,
+                status="missing",
+                summary="codex CLI not found on PATH",
+            )
+        )
+    else:
+        command = ["codex", "exec", "--full-auto", "--cd", str(root), "reply with one line: ok"]
+        proc = subprocess.run(command, capture_output=True, text=True, cwd=root)
+        output = (proc.stderr or proc.stdout or "").strip()
+        if proc.returncode == 0:
+            checks.append(
+                _executor_check_result(
+                    name="codex",
+                    available=True,
+                    status="ok",
+                    summary="codex exec responded successfully",
+                    command=command,
+                    details=output or None,
+                )
+            )
+        else:
+            summary = "codex exec failed"
+            if "failed to lookup address information" in output or "stream disconnected before completion" in output:
+                summary = "codex network path is blocked in this execution context"
+            checks.append(
+                _executor_check_result(
+                    name="codex",
+                    available=True,
+                    status="blocked",
+                    summary=summary,
+                    command=command,
+                    details=output or None,
+                )
+            )
+
+    claude_path = shutil.which("claude")
+    if claude_path is None:
+        checks.append(
+            _executor_check_result(
+                name="claude_code",
+                available=False,
+                status="missing",
+                summary="claude CLI not found on PATH",
+            )
+        )
+    else:
+        command = ["claude", "--print", "--output-format", "json", "reply with one line: ok"]
+        proc = subprocess.run(command, capture_output=True, text=True, cwd=root)
+        output = (proc.stdout or proc.stderr or "").strip()
+        summary = "claude --print responded successfully"
+        status = "ok"
+        if proc.returncode != 0:
+            status = "blocked"
+            summary = "claude non-interactive session is not ready"
+            if "Not logged in" in output:
+                summary = "claude is installed but not logged in for non-interactive use"
+        checks.append(
+            _executor_check_result(
+                name="claude_code",
+                available=True,
+                status=status,
+                summary=summary,
+                command=command,
+                details=output or None,
+            )
+        )
+
+    overall = "ok" if checks and all(item["status"] == "ok" for item in checks) else "blocked"
+    if checks and all(item["status"] == "missing" for item in checks):
+        overall = "missing"
+    return {
+        "cwd": str(root),
+        "overall_status": overall,
+        "checks": checks,
+    }
 
 
 def _write_snapshot_file(path: str | Path, snapshot: dict[str, Any]) -> None:
@@ -816,6 +924,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
     snapshot_parser.add_argument("--persistence-root", help="Optional local runtime root for sqlite/artifacts/memory.")
     snapshot_parser.add_argument("--json", action="store_true", help="Print full JSON result instead of summary.")
 
+    doctor_parser = subparsers.add_parser("doctor", help="Check local executor readiness before running live cycles.")
+    doctor_parser.add_argument("--json", action="store_true", help="Print full JSON result instead of summary.")
+
     return parser
 
 
@@ -876,9 +987,29 @@ def main(argv: list[str] | None = None) -> int:
             transitions=_transitions_from_cycle(result),
             last_cycle=result,
         )
+    elif args.command == "doctor":
+        result = run_executor_doctor(cwd=Path.cwd())
     else:
         parser.error(f"unsupported command: {args.command}")
         return 2
+
+    if args.command == "doctor":
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            summary = {
+                "overall_status": result["overall_status"],
+                "checks": [
+                    {
+                        "executor": item["executor"],
+                        "status": item["status"],
+                        "summary": item["summary"],
+                    }
+                    for item in result["checks"]
+                ],
+            }
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
