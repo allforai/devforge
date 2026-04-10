@@ -7,15 +7,6 @@ from copy import deepcopy
 import json
 from typing import Any, TypedDict
 
-
-class CycleResult(TypedDict):
-    runtime: dict[str, Any]
-    selected_work_packages: list[str]
-    dispatches: list[dict[str, Any]]
-    results: list[dict[str, Any]]
-    events: list[dict[str, Any]]
-    snapshot: dict[str, Any]
-
 from devforge.context import ContextBroker
 from devforge.executors import get_executor_adapter
 from devforge.graph.nodes import concept_collection_node, graph_validation_node, planning_and_shaping_node, project_scheduler_node
@@ -26,6 +17,15 @@ from devforge.persistence import ArtifactStore, EventStore, MemoryStore, Workspa
 from devforge.planning import apply_requirement_events, decide_retry_action
 from devforge.scheduler import select_workset
 from devforge.state import ExecutorPolicy, RequirementEvent, SeamState, WorkPackage, decode_snapshot
+
+
+class CycleResult(TypedDict):
+    runtime: dict[str, Any]
+    selected_work_packages: list[str]
+    dispatches: list[dict[str, Any]]
+    results: list[dict[str, Any]]
+    events: list[dict[str, Any]]
+    snapshot: dict[str, Any]
 
 
 def _runtime_context_from_snapshot(snapshot: dict[str, Any]) -> RuntimeState:
