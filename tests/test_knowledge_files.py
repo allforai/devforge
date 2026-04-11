@@ -16,3 +16,19 @@ def test_profile_rules_has_required_sections():
     assert "data-testid" in content         # Step 2 Web locator
     assert "backend_modules" in content     # Step 4 multi-module
     assert "covered" in content             # Step 3 coverage levels
+
+
+def test_helper_rules_exists():
+    assert (KNOWLEDGE_ROOT / "helper-rules.md").exists()
+
+
+def test_helper_rules_has_8_rules():
+    content = (KNOWLEDGE_ROOT / "helper-rules.md").read_text()
+    for i in range(1, 9):
+        assert f"**规则 {i}：" in content, f"缺少规则 {i}"
+
+
+def test_helper_rules_has_coverage_matrix():
+    content = (KNOWLEDGE_ROOT / "helper-rules.md").read_text()
+    for level in ["covered", "partial", "uncovered"]:
+        assert level in content, f"缺少覆盖程度: {level}"
