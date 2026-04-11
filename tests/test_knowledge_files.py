@@ -59,3 +59,9 @@ def test_patrol_has_capability_matrix():
     for layer in ["keyboard_ime", "scroll_container", "cross_app"]:
         assert layer in content, f"patrol.md 缺少层: {layer}"
     assert "ValueKey" in content or "Semantics" in content
+
+
+def test_jest_rtl_has_capability_matrix():
+    content = (KNOWLEDGE_ROOT / "frameworks" / "jest-rtl.md").read_text()
+    assert "jest-rtl" in content.lower() or "react testing library" in content.lower()
+    assert "getByTestId" in content
