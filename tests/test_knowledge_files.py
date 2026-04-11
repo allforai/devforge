@@ -1,6 +1,6 @@
 from pathlib import Path
 
-KNOWLEDGE_ROOT = Path("knowledge/testing")
+KNOWLEDGE_ROOT = Path(__file__).parent.parent / "knowledge" / "testing"
 
 
 def test_profile_rules_exists():
@@ -11,3 +11,8 @@ def test_profile_rules_has_required_sections():
     content = (KNOWLEDGE_ROOT / "profile-rules.md").read_text()
     for section in ["## 目标", "## Step 1", "## Step 2", "## Step 3", "## Step 4", "## Step 5"]:
         assert section in content, f"缺少章节: {section}"
+    # Load-bearing content per section
+    assert "tech-profile.json" in content  # Step 5 output
+    assert "data-testid" in content         # Step 2 Web locator
+    assert "backend_modules" in content     # Step 4 multi-module
+    assert "covered" in content             # Step 3 coverage levels
