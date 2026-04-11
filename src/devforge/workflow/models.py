@@ -40,6 +40,7 @@ class NodeDefinition(TypedDict):
     knowledge_refs: list[str]
     executor: str
     mode: NodeMode | None     # None | "planning"
+    depends_on: list[str]     # list of node ids this node depends on
 
 
 class WorkflowManifest(TypedDict):
