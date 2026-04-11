@@ -114,9 +114,47 @@ DevForge 当前有两套执行机制：
 {"node": "discover", "status": "completed", "started_at": "...", "completed_at": "...", "artifacts_created": [".devforge/artifacts/source-summary.json"], "error": null}
 ```
 
-**节点状态流转：** `pending → running → completed | failed`
+### 状态机（两层，互相独立）
 
-**文件即真相：** 引擎启动时先检查 exit_artifacts 是否存在，存在则在 manifest 中标记 completed，优先于 transitions.jsonl 记录。
+**节点状态** `NodeStatus`（`manifest.json` 中每个节点的 `status`）：
+
+```
+pending → running → completed
+                 → failed  (attempt_count < 3，可重试)
+                 → failed  (attempt_count >= 3，需人工介入)
+```
+
+**工作流执行状态** `WorkflowPhase`（`manifest.json` 顶层 `workflow_status`，引擎内部用）：
+
+```
+planning → awaiting_confirm → running → complete
+                            ↓                  ↓
+                          (user: n)        failed
+                            ↓
+                          planning  (重新规划)
+```
+
+**工作流生命周期状态** `WorkflowStatus`（`index.json` 中每条记录的 `status`，用户可见）：
+
+```
+active → complete | failed | paused
+```
+
+**同步规则：**
+- `manifest.workflow_status == complete` → 更新 `index.status = complete`
+- `manifest.workflow_status == failed`（节点失败超限）→ 更新 `index.status = failed`
+- `wf switch` → 旧 active workflow 的 `index.status` 改为 `paused`
+- `index.status` 不影响引擎执行，只影响 REPL 展示
+
+---
+
+### "文件即真相"规则及边界
+
+- **只对普通节点生效**，`planning` 节点（`mode == "planning"`）不适用
+- **`exit_artifacts == []` 时不自动 completed**，必须通过 transition 记录确认完成
+- **判定标准**：文件存在且大小 > 0（不校验 JSON 格式）
+- **与 transition 冲突时**：文件存在 → artifact 优先，节点标记 completed（无论 transition 记录什么）
+- **`wf reset <node-id>` 后**：只重置 manifest 中的状态为 pending，不删除 artifact 文件；下次 reconcile 时若文件仍存在会再次标记 completed — **因此 reset 应配合手动删除旧 artifact 使用，文档须说明这一点**
 
 ---
 
@@ -124,11 +162,12 @@ DevForge 当前有两套执行机制：
 
 ```
 src/devforge/workflow/
-├── __init__.py          # 导出 WorkflowEngine
+├── __init__.py          # 导出 run_one_cycle
 ├── models.py            # TypedDict 定义
 ├── engine.py            # 核心执行循环
 ├── store.py             # 文件读写（index/manifest/node/transitions）
-└── artifacts.py         # exit_artifacts 存在性检查
+├── artifacts.py         # exit_artifacts 存在性检查
+└── validation.py        # workflow 合法性校验
 ```
 
 ### `models.py`
@@ -137,7 +176,8 @@ src/devforge/workflow/
 from typing import TypedDict, Literal
 
 NodeStatus = Literal["pending", "running", "completed", "failed"]
-WorkflowStatus = Literal["active", "completed", "paused", "failed"]
+WorkflowPhase = Literal["planning", "awaiting_confirm", "running", "complete", "failed"]
+WorkflowStatus = Literal["active", "complete", "paused", "failed"]
 
 class NodeManifestEntry(TypedDict):
     id: str
@@ -145,9 +185,13 @@ class NodeManifestEntry(TypedDict):
     depends_on: list[str]
     exit_artifacts: list[str]
     executor: str
+    mode: str | None          # None = 普通节点，"planning" = planner 节点
     parent_node_id: str | None
     depth: int
-    error: str | None
+    attempt_count: int        # 累计执行次数
+    last_started_at: str | None
+    last_completed_at: str | None
+    last_error: str | None
 
 class NodeDefinition(TypedDict):
     id: str
@@ -156,11 +200,13 @@ class NodeDefinition(TypedDict):
     exit_artifacts: list[str]
     knowledge_refs: list[str]
     executor: str
+    mode: str | None          # None | "planning"
 
 class WorkflowManifest(TypedDict):
     id: str
     goal: str
     created_at: str
+    workflow_status: WorkflowPhase
     nodes: list[NodeManifestEntry]
 
 class WorkflowIndexEntry(TypedDict):
@@ -181,6 +227,10 @@ class TransitionEntry(TypedDict):
     completed_at: str
     artifacts_created: list[str]
     error: str | None
+
+class PlannerOutput(TypedDict):
+    nodes: list[NodeDefinition]
+    summary: str
 ```
 
 ### `artifacts.py`
@@ -189,8 +239,8 @@ class TransitionEntry(TypedDict):
 from pathlib import Path
 
 def check_artifacts(root: Path, paths: list[str]) -> bool:
-    """全部 exit_artifacts 存在则返回 True。"""
-    return all((root / p).exists() for p in paths)
+    """全部 exit_artifacts 存在且非空则返回 True。"""
+    return all((root / p).exists() and (root / p).stat().st_size > 0 for p in paths)
 ```
 
 ### `store.py` 职责
@@ -227,28 +277,76 @@ def run_one_cycle(root: Path, wf_id: str) -> dict:
 
 ## 引擎执行流程
 
+### 并发策略（本期）
+
+`select_next_nodes()` 最多选 `MAX_CONCURRENT = 3` 个节点，但本期**串行 dispatch**（逐一调用执行器，等待返回后再处理下一个）。`MAX_CONCURRENT` 的存在是为子项目 2 的真并发预留接口，本期不涉及线程/进程并发。
+
+### 主循环
+
 ```
 wf run 触发一次 run_one_cycle：
 
-1. 读 index.json → 确定 active_workflow_id
-2. 读 manifest.json → 获取节点状态列表
-3. 检查所有 pending/running 节点的 exit_artifacts：存在 → 更新 manifest status = completed
-4. select_next_nodes(manifest) 选出可执行节点
-5. 对每个选中节点：
-   a. 读 nodes/<id>.json 获取完整定义（goal、knowledge_refs）
-   b. 读 knowledge_refs 文件内容
-   c. 构建执行器 prompt（goal + knowledge_refs + 已完成节点的 artifacts 路径）
-   d. 调用 CodexAdapter（默认）或 ClaudeCodeAdapter
-   e. append_transition(transitions.jsonl)
-   f. 更新 manifest 中该节点的 status
-6. 写回 manifest.json
-7. 返回执行摘要
+1. 读 index.json → 确定 active_workflow_id（无则返回 no_active_workflow）
+2. 读 manifest.json
+3. 若 workflow_status == awaiting_confirm → 返回 awaiting_confirm，提示用户确认计划
+4. reconcile_artifacts：对所有普通节点（mode != "planning"）且 exit_artifacts 非空，
+   检查文件存在且非空 → 更新 manifest status = completed
+5. select_next_nodes(manifest) 选出可执行节点（串行执行）
+6. 若无可执行节点：
+   - 所有节点 completed → workflow_status = complete，同步 index.status，返回 all_complete
+   - 有 pending 但无 running → 返回 blocked（列出阻塞节点）
+7. 对每个选中节点（串行）：
+   a. mode == "planning" → 走 Planner 流程（见下）
+   b. 普通节点：
+      i.   更新 status = running，attempt_count += 1，last_started_at = now，写 manifest
+      ii.  读 nodes/<id>.json + knowledge_refs，构建 prompt
+      iii. 调用执行器（subprocess）
+      iv.  exit code 0 → status = completed；非 0 → status = failed，last_error = output[:500]
+      v.   更新 last_completed_at，写 manifest，append transition
+      vi.  attempt_count >= 3 且 status == failed → workflow_status = failed，同步 index，停止
+8. 写回 manifest.json（见原子写入策略）
+9. 返回执行摘要
 ```
 
-**终止条件：**
-- 所有节点 `completed` → 成功，更新 index.json workflow status = completed
-- 某节点 `failed` 连续 3 次 → 警告用户，停止并等待人工干预
-- 无可执行节点但有 `pending` 节点 → 存在未满足依赖，报错说明哪些节点阻塞
+### Planner 节点流程
+
+```
+当 mode == "planning" 的节点被选中：
+
+1. 执行执行器，期望 stdout 为 PlannerOutput JSON
+2. 解析 stdout：
+   - 解析失败 → status = failed，last_error = "planner output is not valid JSON: ..."
+   - 解析成功：
+     a. 对 PlannerOutput.nodes 做合法性校验（见校验节点）
+     b. 校验失败 → status = failed，last_error = 校验错误描述
+     c. 校验成功：
+        - 将每个子节点写入 nodes/<id>.json（不写入 manifest.nodes）
+        - 将子节点列表写入 .devforge/workflows/<wf_id>/pending_plan.json
+        - planner 节点 status = completed
+        - manifest.workflow_status = awaiting_confirm
+        - 写 manifest，append transition
+3. 返回 awaiting_confirm，REPL 展示计划并等待用户输入 y/n
+```
+
+### 用户确认流程（`wf confirm y/n`）
+
+```
+y（确认）：
+  1. 读 pending_plan.json
+  2. 将子节点追加到 manifest.nodes（status = pending）
+  3. 删除 pending_plan.json
+  4. manifest.workflow_status = running
+  5. 写 manifest
+
+n（拒绝）：
+  1. 删除 pending_plan.json
+  2. 删除 nodes/ 中刚写入的子节点文件
+  3. planner 节点 status = pending（重新规划）
+  4. manifest.workflow_status = planning
+  5. 写 manifest
+```
+
+**"修改计划"功能（本期不实现）**：REPL 展示计划时不提供节点编辑入口，用户只能选 y/n。
 
 ---
 
@@ -260,9 +358,10 @@ wf run 触发一次 run_one_cycle：
 |---|---|---|
 | `wf` | 显示活跃工作流 DAG 状态 | `index.json` + `manifest.json` |
 | `wf run` | 执行下一批可运行节点 | `manifest.json` + 选中节点的 `nodes/<id>.json` |
-| `wf init <名称>` | 从内置模板创建工作流 | 写 `index.json` + `manifest.json` + `nodes/` |
+| `wf init <目标>` | 创建新工作流（含 planner 节点） | 写 `index.json` + `manifest.json` + `nodes/planner.json` |
+| `wf confirm y\|n` | 确认或拒绝 planner 生成的计划 | `pending_plan.json` + `manifest.json` |
 | `wf log` | 显示执行历史 | `transitions.jsonl` |
-| `wf reset <node-id>` | 重置节点为 pending | `manifest.json` |
+| `wf reset <node-id>` | 重置节点为 pending（须手动删旧 artifact） | `manifest.json` |
 | `wf list` | 列出所有工作流 | `index.json` |
 | `wf switch <wf-id>` | 切换活跃工作流 | `index.json` |
 
@@ -283,7 +382,85 @@ Workflow: 逆向分析 DevForge 项目  [wf-逆向分析-20260411]
 
 启动时询问"当前目标"后：
 - `index.json` 存在且有 active workflow → 自动显示 `wf` 状态
-- 不存在 → 提示 `wf init <模板>` 创建，或 `c` 继续现有 run_cycle
+- 不存在 → 提示 `wf init <目标>` 创建，或 `c` 继续现有 run_cycle
+
+---
+
+## 执行器 I/O 契约
+
+### 普通节点
+
+- **输入**：`subprocess.run(cmd, capture_output=True, text=True)`
+  - codex：`["codex", "exec", "--full-auto", "--cd", str(root), prompt]`
+  - claude_code：`["claude", "--print", prompt]`
+  - `prompt` = `node.goal + "\n\n---\n\n" + knowledge_content`（knowledge 为空则只有 goal）
+- **成功判定**：`returncode == 0`
+- **失败时**：`last_error = (stdout or stderr)[:500]`
+- **执行器不可用**（命令未找到）：捕获 `FileNotFoundError`，`last_error = "executor not found: <cmd>"`，节点标记 failed
+
+### Planning 节点
+
+- **输入**：同上，prompt 由 `node.goal + knowledge` 构成，知识文件应包含 Planner 的输出格式说明
+- **成功判定**：`returncode == 0` 且 stdout 可解析为合法 `PlannerOutput` JSON
+- **stdout 格式**：
+  ```json
+  {
+    "nodes": [
+      {
+        "id": "discover",
+        "capability": "discovery",
+        "goal": "...",
+        "exit_artifacts": ["..."],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": null
+      }
+    ],
+    "summary": "计划说明"
+  }
+  ```
+- **解析失败**：节点标记 failed，`last_error = "planner output parse error: <原因>"`
+- **校验失败**：节点标记 failed，`last_error = "planner output validation error: <原因>"`
+
+---
+
+## 存储原子性策略
+
+- **manifest.json / index.json 写入**：使用临时文件 + `os.replace(tmp, target)`（POSIX 原子操作）
+- **transitions.jsonl**：append-only，Python `open(mode="a")` 本身是追加；单行 JSON 写入是原子的；读取时跳过无法解析的行（容错）
+- **写入顺序**：先写 manifest → 再 append transition。若 transition 写入失败，manifest 已更新，下次 reconcile 会通过 artifact 检查恢复状态
+- **多进程限制**：本期不支持多个 `wf run` 并发执行。没有 lock 文件机制，文档需说明"同一时间只运行一个 devforge 实例"
+
+---
+
+## 节点合法性校验（`validation.py`）
+
+`wf init` 创建工作流时，以及 Planner 输出被接受前，均需通过校验：
+
+- node id 在工作流内唯一
+- `depends_on` 中的每个 id 必须存在于节点列表中
+- 节点不能依赖自身（自依赖）
+- 不存在循环依赖（DFS 检测）
+- `knowledge_refs` 文件不存在时：**警告**（`stderr` 输出），不报错，执行时跳过该文件
+- `executor` 必须是 `codex` 或 `claude_code`（本期支持的两种）
+
+---
+
+## 测试矩阵补充
+
+除现有测试外，必须覆盖以下案例：
+
+| 场景 | 期望行为 |
+|---|---|
+| depends_on 形成循环 | `validate_workflow` 抛出 `ValueError` |
+| `wf reset` 后旧 artifact 仍存在 | 下次 `reconcile` 立即再次标记 completed（文档警告用户先删文件） |
+| planner 输出非法 JSON | planner 节点 `status = failed`，`last_error` 包含 parse error |
+| planner 输出节点 id 重复 | 校验失败，planner 节点 `status = failed` |
+| `workflow_status == complete` | `index.status` 同步更新为 `complete` |
+| active workflow 的 manifest 文件丢失 | `run_one_cycle` 返回 `{"status": "manifest_missing"}` |
+| `transitions.jsonl` 含损坏行 | `read_transitions` 跳过损坏行，返回其余有效记录 |
+| 执行器命令不存在（`FileNotFoundError`） | 节点 `status = failed`，`last_error = "executor not found: codex"` |
+| `attempt_count >= 3` 时节点再次失败 | `workflow_status = failed`，`index.status = failed`，返回 `{"status": "workflow_failed"}` |
 
 ---
 
