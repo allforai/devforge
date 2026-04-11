@@ -30,11 +30,6 @@ _WORKFLOWS_DIR = ".devforge/workflows"
 _INDEX_FILE = "index.json"
 _MANIFEST_FILE = "manifest.json"
 _TRANSITIONS_FILE = "transitions.jsonl"
-_EMPTY_INDEX: WorkflowIndex = {
-    "schema_version": "1.0",
-    "active_workflow_id": None,
-    "workflows": [],
-}
 
 
 def _workflows_root(root: Path) -> Path:
@@ -80,7 +75,7 @@ def _atomic_write(path: Path, text: str) -> None:
 def read_index(root: Path) -> WorkflowIndex:
     path = _index_path(root)
     if not path.exists():
-        return dict(_EMPTY_INDEX)  # type: ignore[return-value]
+        return {"schema_version": "1.0", "active_workflow_id": None, "workflows": []}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
