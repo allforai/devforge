@@ -1,0 +1,73 @@
+"""TypedDict definitions for the DevForge workflow engine."""
+
+from __future__ import annotations
+
+from typing import Literal, TypedDict
+
+NodeStatus = Literal["pending", "running", "completed", "failed"]
+
+# Engine-internal phase (stored in manifest.workflow_status)
+WorkflowPhase = Literal["planning", "awaiting_confirm", "running", "complete", "failed"]
+
+# User-visible lifecycle status (stored in index.json per workflow)
+WorkflowStatus = Literal["active", "complete", "paused", "failed"]
+
+
+class NodeManifestEntry(TypedDict):
+    id: str
+    status: NodeStatus
+    depends_on: list[str]
+    exit_artifacts: list[str]
+    executor: str
+    mode: str | None          # None = regular node, "planning" = planner node
+    parent_node_id: str | None
+    depth: int
+    attempt_count: int        # cumulative execution attempts
+    last_started_at: str | None
+    last_completed_at: str | None
+    last_error: str | None
+
+
+class NodeDefinition(TypedDict):
+    id: str
+    capability: str
+    goal: str
+    exit_artifacts: list[str]
+    knowledge_refs: list[str]
+    executor: str
+    mode: str | None          # None | "planning"
+
+
+class WorkflowManifest(TypedDict):
+    id: str
+    goal: str
+    created_at: str
+    workflow_status: WorkflowPhase   # engine-internal phase
+    nodes: list[NodeManifestEntry]
+
+
+class WorkflowIndexEntry(TypedDict):
+    id: str
+    goal: str
+    status: WorkflowStatus
+    created_at: str
+
+
+class WorkflowIndex(TypedDict):
+    schema_version: str
+    active_workflow_id: str | None
+    workflows: list[WorkflowIndexEntry]
+
+
+class TransitionEntry(TypedDict):
+    node: str
+    status: Literal["completed", "failed"]
+    started_at: str
+    completed_at: str
+    artifacts_created: list[str]
+    error: str | None
+
+
+class PlannerOutput(TypedDict):
+    nodes: list[NodeDefinition]
+    summary: str
