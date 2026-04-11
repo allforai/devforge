@@ -12,6 +12,10 @@ WorkflowPhase = Literal["planning", "awaiting_confirm", "running", "complete", "
 # User-visible lifecycle status (stored in index.json per workflow)
 WorkflowStatus = Literal["active", "complete", "paused", "failed"]
 
+NodeMode = Literal["planning"]
+
+TransitionStatus = Literal["completed", "failed"]
+
 
 class NodeManifestEntry(TypedDict):
     id: str
@@ -19,7 +23,7 @@ class NodeManifestEntry(TypedDict):
     depends_on: list[str]
     exit_artifacts: list[str]
     executor: str
-    mode: str | None          # None = regular node, "planning" = planner node
+    mode: NodeMode | None     # None = regular node, "planning" = planner node
     parent_node_id: str | None
     depth: int
     attempt_count: int        # cumulative execution attempts
@@ -35,7 +39,7 @@ class NodeDefinition(TypedDict):
     exit_artifacts: list[str]
     knowledge_refs: list[str]
     executor: str
-    mode: str | None          # None | "planning"
+    mode: NodeMode | None     # None | "planning"
 
 
 class WorkflowManifest(TypedDict):
@@ -61,7 +65,7 @@ class WorkflowIndex(TypedDict):
 
 class TransitionEntry(TypedDict):
     node: str
-    status: Literal["completed", "failed"]
+    status: TransitionStatus
     started_at: str
     completed_at: str
     artifacts_created: list[str]
