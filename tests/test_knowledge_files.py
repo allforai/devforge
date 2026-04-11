@@ -1,6 +1,6 @@
 from pathlib import Path
 
-KNOWLEDGE_ROOT = Path(__file__).parent.parent / "knowledge" / "testing"
+KNOWLEDGE_ROOT = Path(__file__).parent.parent / "src" / "devforge" / "knowledge" / "content" / "testing"
 
 
 def test_profile_rules_exists():

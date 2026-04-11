@@ -62,11 +62,22 @@ def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManif
     return updated
 
 
+_BUILTIN_KNOWLEDGE = Path(__file__).resolve().parent.parent / "knowledge" / "content"
+
+
 def _load_knowledge(refs: list[str], root: Path) -> str:
-    """Read knowledge_refs files and join their content. Missing files are skipped."""
+    """Read knowledge_refs files and join their content. Missing files are skipped.
+
+    Resolution order:
+    1. Project-local: root / ref
+    2. DevForge built-in: strip "knowledge/" prefix, look in package content dir
+    """
     parts: list[str] = []
     for ref in refs:
         path = root / ref
+        if not path.exists():
+            builtin_ref = ref[len("knowledge/"):] if ref.startswith("knowledge/") else ref
+            path = _BUILTIN_KNOWLEDGE / builtin_ref
         if path.exists():
             parts.append(path.read_text(encoding="utf-8"))
     return "\n\n---\n\n".join(parts)
