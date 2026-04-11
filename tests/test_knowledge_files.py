@@ -45,3 +45,10 @@ def test_playwright_has_capability_matrix():
     for layer in ["element_discovery", "button_trigger", "gesture", "async_wait",
                   "system_dialog", "keyboard_ime", "scroll_container", "cross_app"]:
         assert layer in content, f"playwright.md 缺少层: {layer}"
+
+
+def test_xcuitest_has_capability_matrix():
+    content = (KNOWLEDGE_ROOT / "frameworks" / "xcuitest.md").read_text()
+    for layer in ["element_discovery", "gesture", "keyboard_ime", "scroll_container"]:
+        assert layer in content, f"xcuitest.md 缺少层: {layer}"
+    assert "accessibilityIdentifier" in content
