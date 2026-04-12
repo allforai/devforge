@@ -351,7 +351,8 @@ def _init_workflow(root: Path, name: str) -> list[str]:
 - 示例（差）："扫描代码库" — 路径和输出格式不明确，执行器可能需要交互确认
 
 输出格式（stdout，必须是合法 JSON，无其他内容）：
-{{"nodes": [{{"id": "...", "capability": "...", "goal": "...", "exit_artifacts": ["..."], "knowledge_refs": [], "executor": "codex", "mode": null, "depends_on": []}}], "summary": "..."}}
+Use executor="claude_code" for all nodes. Do not use codex.
+{{"nodes": [{{"id": "...", "capability": "...", "goal": "...", "exit_artifacts": ["..."], "knowledge_refs": [], "executor": "claude_code", "mode": null, "depends_on": []}}], "summary": "..."}}
 """
     planner_node: NodeDefinition = {
         "id": "planner",
