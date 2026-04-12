@@ -116,6 +116,79 @@ def _dispatch_node(node: NodeDefinition, root: Path) -> dict[str, Any]:
     }
 
 
+def _write_run_log(root: Path, wf_id: str, node_id: str, started_at: str,
+                   executor: str, returncode: int, output: str) -> Path:
+    """Save executor raw output to .devforge/workflows/<wf-id>/runs/<node>.<ts>.log"""
+    runs_dir = root / ".devforge" / "workflows" / wf_id / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    # Use a sortable timestamp slug from started_at
+    ts_slug = started_at.replace(":", "").replace("-", "").replace("+", "").replace(".", "")[:15]
+    log_path = runs_dir / f"{node_id}.{ts_slug}.log"
+    lines = [
+        f"node:       {node_id}",
+        f"executor:   {executor}",
+        f"started_at: {started_at}",
+        f"exit_code:  {returncode}",
+        f"---",
+        output or "(no output)",
+    ]
+    log_path.write_text("\n".join(lines), encoding="utf-8")
+    return log_path
+
+
+def _write_status_json(root: Path, wf_id: str, manifest: WorkflowManifest,
+                       cycle_dispatched: list[str]) -> None:
+    """Write .devforge/workflows/<wf-id>/status.json — machine-readable snapshot for agents."""
+    completed = [n for n in manifest["nodes"] if n["status"] == "completed"]
+    failed    = [n for n in manifest["nodes"] if n["status"] == "failed"]
+    running   = [n for n in manifest["nodes"] if n["status"] == "running"]
+    pending   = [n for n in manifest["nodes"] if n["status"] == "pending"]
+    total     = len(manifest["nodes"])
+
+    status = {
+        "wf_id": wf_id,
+        "goal": manifest.get("goal", ""),
+        "workflow_status": manifest["workflow_status"],
+        "progress": {
+            "completed": len(completed),
+            "failed": len(failed),
+            "running": len(running),
+            "pending": len(pending),
+            "total": total,
+        },
+        "active_nodes": [n["id"] for n in running],
+        "last_cycle_at": _now(),
+        "last_cycle_dispatched": cycle_dispatched,
+        "nodes": [
+            {
+                "id": n["id"],
+                "status": n["status"],
+                "executor": n.get("executor", "codex"),
+                "attempt": n.get("attempt_count", 0),
+                "depends_on": n.get("depends_on", []),
+                "exit_artifacts": n.get("exit_artifacts", []),
+                "started_at": n.get("last_started_at"),
+                "completed_at": n.get("last_completed_at"),
+                "error": n.get("last_error"),
+            }
+            for n in manifest["nodes"]
+        ],
+    }
+    status_path = root / ".devforge" / "workflows" / wf_id / "status.json"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    import tempfile, os as _os
+    fd, tmp = tempfile.mkstemp(dir=str(status_path.parent), suffix=".tmp")
+    try:
+        with _os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(status, indent=2, ensure_ascii=False))
+        _os.replace(tmp, str(status_path))
+    except Exception:
+        try:
+            _os.unlink(tmp)
+        except OSError:
+            pass
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -152,6 +225,7 @@ def run_one_cycle(root: Path) -> dict[str, Any]:
         manifest["workflow_status"] = "complete"
         write_manifest(root, wf_id, manifest)
         _sync_index_status(root, wf_id, "complete")
+        _write_status_json(root, wf_id, manifest, [])
         return {"status": "all_complete", "dispatched": []}
 
     candidates = select_next_nodes(manifest)
@@ -159,6 +233,7 @@ def run_one_cycle(root: Path) -> dict[str, Any]:
         pending = [n["id"] for n in manifest["nodes"] if n["status"] == "pending"]
         running = [n["id"] for n in manifest["nodes"] if n["status"] == "running"]
         write_manifest(root, wf_id, manifest)
+        _write_status_json(root, wf_id, manifest, [])
         return {"status": "blocked", "dispatched": [], "pending": pending, "running": running}
 
     dispatched: list[str] = []
@@ -248,12 +323,20 @@ def run_one_cycle(root: Path) -> dict[str, Any]:
         append_transition(root, wf_id, transition)
         dispatched.append(entry["id"])
 
+        # Save raw executor output to runs/<node>.<ts>.log
+        _write_run_log(
+            root, wf_id, entry["id"], started_at,
+            node_def.get("executor", "codex"), returncode, output
+        )
+
         # Check if this node exceeded max attempts → fail the whole workflow
         if entry["status"] == "failed" and entry["attempt_count"] >= MAX_ATTEMPTS:
             manifest["workflow_status"] = "failed"
             write_manifest(root, wf_id, manifest)
             _sync_index_status(root, wf_id, "failed")
+            _write_status_json(root, wf_id, manifest, dispatched)
             return {"status": "workflow_failed", "dispatched": dispatched}
 
     write_manifest(root, wf_id, manifest)
+    _write_status_json(root, wf_id, manifest, dispatched)
     return {"status": "ok", "dispatched": dispatched}
