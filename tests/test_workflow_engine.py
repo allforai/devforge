@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from devforge.workflow.models import NodeManifestEntry, NodeDefinition, WorkflowManifest, WorkflowIndex
 from devforge.workflow.engine import select_next_nodes, reconcile_artifacts, run_one_cycle
 from devforge.workflow.store import write_index, write_manifest, write_node, read_manifest, read_index
@@ -12,6 +12,8 @@ def _node(
     exit_artifacts: list[str] | None = None,
     mode: str | None = None,
     attempt_count: int = 0,
+    pid: int | None = None,
+    log_path: str | None = None,
 ) -> NodeManifestEntry:
     return {
         "id": node_id,
@@ -26,6 +28,8 @@ def _node(
         "last_started_at": None,
         "last_completed_at": None,
         "last_error": None,
+        "pid": pid,
+        "log_path": log_path,
     }
 
 
@@ -162,50 +166,47 @@ def _setup_workflow(
         write_node(tmp_path, wf_id, node_def)
 
 
+def _mock_popen(pid: int = 12345) -> MagicMock:
+    """Create a mock Popen object."""
+    mock_proc = MagicMock()
+    mock_proc.pid = pid
+    return mock_proc
+
+
 def test_run_one_cycle_dispatches_pending_node(tmp_path: Path) -> None:
     _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.return_value = {"returncode": 0, "output": "ok", "executor": "codex"}
+    mock_proc = _mock_popen()
+    log_path = tmp_path / "fake.log"
+    with patch("devforge.workflow.engine._dispatch_node_async") as mock_dispatch:
+        mock_dispatch.return_value = (mock_proc, log_path)
         result = run_one_cycle(tmp_path)
     assert result["dispatched"] == ["discover"]
     mock_dispatch.assert_called_once()
 
 
-def test_run_one_cycle_marks_node_completed_on_success(tmp_path: Path) -> None:
+def test_run_one_cycle_async_sets_running_with_pid(tmp_path: Path) -> None:
     _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.return_value = {"returncode": 0, "output": "ok", "executor": "codex"}
+    mock_proc = _mock_popen(pid=99999)
+    log_path = tmp_path / "fake.log"
+    with patch("devforge.workflow.engine._dispatch_node_async") as mock_dispatch:
+        mock_dispatch.return_value = (mock_proc, log_path)
         run_one_cycle(tmp_path)
     manifest = read_manifest(tmp_path, "wf-test-001")
     node = manifest["nodes"][0]
-    assert node["status"] == "completed"
+    assert node["status"] == "running"
+    assert node["pid"] == 99999
     assert node["attempt_count"] == 1
-    assert node["last_completed_at"] is not None
-    assert node["last_error"] is None
 
 
-def test_run_one_cycle_marks_node_failed_on_error(tmp_path: Path) -> None:
+def test_run_one_cycle_marks_node_failed_on_executor_not_found(tmp_path: Path) -> None:
     _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.return_value = {"returncode": 1, "output": "error msg", "executor": "codex"}
+    with patch("devforge.workflow.engine._dispatch_node_async") as mock_dispatch:
+        mock_dispatch.side_effect = FileNotFoundError("codex not found")
         run_one_cycle(tmp_path)
     manifest = read_manifest(tmp_path, "wf-test-001")
     node = manifest["nodes"][0]
     assert node["status"] == "failed"
-    assert node["last_error"] == "error msg"
-    assert node["attempt_count"] == 1
-
-
-def test_run_one_cycle_writes_transition_log(tmp_path: Path) -> None:
-    _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.return_value = {"returncode": 0, "output": "ok", "executor": "codex"}
-        run_one_cycle(tmp_path)
-    from devforge.workflow.store import read_transitions
-    transitions = read_transitions(tmp_path, "wf-test-001")
-    assert len(transitions) == 1
-    assert transitions[0]["node"] == "discover"
-    assert transitions[0]["status"] == "completed"
+    assert "executor not found" in (node["last_error"] or "")
 
 
 def test_run_one_cycle_returns_all_complete_when_done(tmp_path: Path) -> None:
@@ -213,7 +214,6 @@ def test_run_one_cycle_returns_all_complete_when_done(tmp_path: Path) -> None:
     result = run_one_cycle(tmp_path)
     assert result["status"] == "all_complete"
     assert result["dispatched"] == []
-    # index.status should be synced to "complete"
     index = read_index(tmp_path)
     assert index["workflows"][0]["status"] == "complete"
 
@@ -231,7 +231,6 @@ def test_run_one_cycle_returns_manifest_missing(tmp_path: Path) -> None:
         "workflows": [{"id": wf_id, "goal": "Test", "status": "active", "created_at": "2026-04-11T00:00:00Z"}],
     }
     write_index(tmp_path, index)
-    # manifest file is NOT written
     result = run_one_cycle(tmp_path)
     assert result["status"] == "manifest_missing"
 
@@ -242,40 +241,49 @@ def test_run_one_cycle_returns_awaiting_confirm(tmp_path: Path) -> None:
     assert result["status"] == "awaiting_confirm"
 
 
-def test_run_one_cycle_executor_not_found(tmp_path: Path) -> None:
-    _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.side_effect = FileNotFoundError("codex not found")
-        run_one_cycle(tmp_path)
-    manifest = read_manifest(tmp_path, "wf-test-001")
-    node = manifest["nodes"][0]
-    assert node["status"] == "failed"
-    assert "executor not found" in (node["last_error"] or "")
+# ---------------------------------------------------------------------------
+# reconcile_artifacts with pid-based process liveness checks
+# ---------------------------------------------------------------------------
 
 
-def test_run_one_cycle_executor_timeout(tmp_path: Path) -> None:
-    import subprocess as _subprocess
-    _setup_workflow(tmp_path)
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.side_effect = _subprocess.TimeoutExpired(cmd="codex", timeout=300)
-        run_one_cycle(tmp_path)
-    manifest = read_manifest(tmp_path, "wf-test-001")
-    node = manifest["nodes"][0]
-    assert node["status"] == "failed"
-    assert "timeout" in (node["last_error"] or "")
+def test_reconcile_running_node_process_alive_stays_running(tmp_path: Path) -> None:
+    import os
+    nodes = [_node("build", status="running", exit_artifacts=["out.json"], pid=12345)]
+    manifest = _manifest(nodes)
+    with patch("devforge.workflow.engine.os.kill") as mock_kill:
+        mock_kill.return_value = None  # process alive
+        updated = reconcile_artifacts(tmp_path, manifest)
+    assert updated["nodes"][0]["status"] == "running"
 
 
-def test_run_one_cycle_workflow_fails_after_max_attempts(tmp_path: Path) -> None:
-    # attempt_count already at 2, so this attempt makes it 3 → workflow_status = failed
-    _setup_workflow(tmp_path, attempt_counts={"discover": 2})
-    with patch("devforge.workflow.engine._dispatch_node") as mock_dispatch:
-        mock_dispatch.return_value = {"returncode": 1, "output": "still failing", "executor": "codex"}
-        result = run_one_cycle(tmp_path)
-    assert result["status"] == "workflow_failed"
-    manifest = read_manifest(tmp_path, "wf-test-001")
-    assert manifest["workflow_status"] == "failed"
-    index = read_index(tmp_path)
-    assert index["workflows"][0]["status"] == "failed"
+def test_reconcile_running_node_process_dead_artifacts_present(tmp_path: Path) -> None:
+    (tmp_path / "out.json").write_text("{}")
+    nodes = [_node("build", status="running", exit_artifacts=["out.json"], pid=12345)]
+    manifest = _manifest(nodes)
+    with patch("devforge.workflow.engine.os.kill") as mock_kill:
+        mock_kill.side_effect = ProcessLookupError
+        updated = reconcile_artifacts(tmp_path, manifest)
+    assert updated["nodes"][0]["status"] == "completed"
+    assert updated["nodes"][0]["pid"] is None
+
+
+def test_reconcile_running_node_process_dead_artifacts_missing(tmp_path: Path) -> None:
+    nodes = [_node("build", status="running", exit_artifacts=["out.json"], pid=12345)]
+    manifest = _manifest(nodes)
+    with patch("devforge.workflow.engine.os.kill") as mock_kill:
+        mock_kill.side_effect = ProcessLookupError
+        updated = reconcile_artifacts(tmp_path, manifest)
+    assert updated["nodes"][0]["status"] == "failed"
+    assert "process exited" in updated["nodes"][0]["last_error"]
+    assert updated["nodes"][0]["pid"] is None
+
+
+def test_reconcile_running_node_no_pid_falls_through(tmp_path: Path) -> None:
+    (tmp_path / "out.json").write_text("{}")
+    nodes = [_node("build", status="running", exit_artifacts=["out.json"])]
+    manifest = _manifest(nodes)
+    updated = reconcile_artifacts(tmp_path, manifest)
+    assert updated["nodes"][0]["status"] == "completed"
 
 
 from devforge.session import UserIntent

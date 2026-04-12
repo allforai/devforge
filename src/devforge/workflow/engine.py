@@ -47,8 +47,24 @@ def select_next_nodes(manifest: WorkflowManifest) -> list[NodeManifestEntry]:
     ][:slots]
 
 
+def _is_process_alive(pid: int) -> bool:
+    """Check whether a process with the given PID is still running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists but we can't signal it
+
+
 def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManifest:
     """Mark nodes completed if all their exit_artifacts exist on disk.
+
+    For running nodes with a pid, also checks process liveness:
+    - Process alive → leave as running
+    - Process dead + artifacts present → completed
+    - Process dead + artifacts missing → failed
 
     Planning nodes (mode == "planning") are never reconciled via artifacts.
     Nodes with empty exit_artifacts are not automatically completed.
@@ -57,6 +73,23 @@ def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManif
     for node in updated["nodes"]:
         if node.get("mode") == "planning":
             continue
+
+        if node["status"] == "running" and node.get("pid") is not None:
+            if _is_process_alive(node["pid"]):
+                continue
+            # Process has exited — fall through to artifact check
+            if node["exit_artifacts"] and check_artifacts(root, node["exit_artifacts"]):
+                node["status"] = "completed"
+                node["last_error"] = None
+                node["last_completed_at"] = _now()
+                node["pid"] = None
+            else:
+                node["status"] = "failed"
+                node["last_error"] = "process exited without producing exit_artifacts"
+                node["last_completed_at"] = _now()
+                node["pid"] = None
+            continue
+
         if node["status"] in ("pending", "running") and node["exit_artifacts"]:
             if check_artifacts(root, node["exit_artifacts"]):
                 node["status"] = "completed"
@@ -97,8 +130,8 @@ _NON_INTERACTIVE_SUFFIX = """
 _EXECUTOR_TIMEOUT = int(os.environ.get("DEVFORGE_EXECUTOR_TIMEOUT", "600"))
 
 
-def _dispatch_node(node: NodeDefinition, root: Path) -> dict[str, Any]:
-    """Call executor subprocess with node goal + knowledge content + non-interactive suffix."""
+def _build_executor_cmd(node: NodeDefinition, root: Path) -> tuple[list[str], str]:
+    """Build the executor command and prompt for a node. Returns (cmd, executor_name)."""
     knowledge = _load_knowledge(node.get("knowledge_refs", []), root)
     prompt = node["goal"]
     if knowledge:
@@ -109,12 +142,47 @@ def _dispatch_node(node: NodeDefinition, root: Path) -> dict[str, Any]:
         cmd = build_codex_command(prompt=prompt, working_dir=str(root))
     else:
         cmd = ["claude", "--print", "--dangerously-skip-permissions", prompt]
+    return cmd, executor
+
+
+def _dispatch_node(node: NodeDefinition, root: Path) -> dict[str, Any]:
+    """Call executor subprocess with node goal + knowledge content + non-interactive suffix (blocking)."""
+    cmd, executor = _build_executor_cmd(node, root)
     proc = subprocess.run(cmd, capture_output=True, text=True, cwd=root, timeout=_EXECUTOR_TIMEOUT)
     return {
         "returncode": proc.returncode,
         "output": (proc.stdout or proc.stderr or "").strip(),
         "executor": executor,
     }
+
+
+def _dispatch_node_async(
+    node: NodeDefinition, root: Path, wf_id: str, started_at: str,
+) -> tuple[subprocess.Popen, Path]:
+    """Start executor subprocess non-blocking. Returns (process, log_path)."""
+    cmd, executor = _build_executor_cmd(node, root)
+
+    runs_dir = root / ".devforge" / "workflows" / wf_id / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    ts_slug = started_at.replace(":", "").replace("-", "").replace("+", "").replace(".", "")[:15]
+    log_path = runs_dir / f"{node['id']}.{ts_slug}.log"
+
+    log_path.write_text("\n".join([
+        f"node:       {node['id']}",
+        f"executor:   {executor}",
+        f"started_at: {started_at}",
+        f"exit_code:  (running...)",
+        f"---",
+    ]), encoding="utf-8")
+
+    log_fh = open(log_path, "a", encoding="utf-8")  # noqa: SIM115
+    proc = subprocess.Popen(
+        cmd, cwd=root,
+        stdout=log_fh, stderr=subprocess.STDOUT,
+        text=True,
+    )
+    log_fh.close()
+    return proc, log_path
 
 
 def _write_run_log(root: Path, wf_id: str, node_id: str, started_at: str,

@@ -30,6 +30,8 @@ class NodeManifestEntry(TypedDict):
     last_started_at: str | None
     last_completed_at: str | None
     last_error: str | None
+    pid: int | None
+    log_path: str | None
 
 
 class NodeDefinition(TypedDict):
