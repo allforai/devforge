@@ -11,6 +11,7 @@ from devforge.workflow.engine import run_one_cycle
 def _node(
     node_id: str,
     status: str = "pending",
+    strategy: str | None = None,
     depends_on: list[str] | None = None,
     exit_artifacts: list[str] | None = None,
     mode: str | None = None,
@@ -20,6 +21,7 @@ def _node(
     return {
         "id": node_id,
         "status": status,
+        "strategy": strategy,
         "depends_on": depends_on or [],
         "exit_artifacts": exit_artifacts or [],
         "executor": executor,
@@ -138,7 +140,7 @@ def test_graph_discovery_node_failure(tmp_path: Path) -> None:
     nodes = [_node("discover", mode="discovery")]
     node_defs = [NodeDefinition(
         id="discover", capability="discovery", goal="scan",
-        exit_artifacts=[], knowledge_refs=[], executor="claude_code",
+        exit_artifacts=[], knowledge_refs=[], executor="claude_code", strategy="REVERSE_ANALYSIS",
         mode="discovery", depends_on=[],
     )]
     wf_id = _setup(tmp_path, nodes, node_defs)
@@ -151,6 +153,7 @@ def test_graph_discovery_node_failure(tmp_path: Path) -> None:
     manifest = read_manifest(tmp_path, wf_id)
     assert manifest["nodes"][0]["status"] == "failed"
     assert "error occurred" in (manifest["nodes"][0]["last_error"] or "")
+    assert any(node["id"].startswith("diagnose-discover-") for node in manifest["nodes"])
 
 
 def test_graph_discovery_node_max_attempts_fails_workflow(tmp_path: Path) -> None:

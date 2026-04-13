@@ -30,6 +30,7 @@ def test_role_registry_contains_core_roles() -> None:
     assert "software_engineer" in ROLE_REGISTRY
     assert "qa_engineer" in ROLE_REGISTRY
     assert get_role_spec("integration_owner").preferred_executors == ["python", "claude_code"]
+    assert "knowledge/content/vault/static-analysis-checklist.md" in get_role_spec("software_engineer").sop_refs
 
 
 def test_executor_registry_contains_core_adapters() -> None:

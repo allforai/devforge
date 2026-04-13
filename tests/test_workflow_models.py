@@ -16,6 +16,7 @@ def test_node_manifest_entry_is_dict() -> None:
     entry: NodeManifestEntry = {
         "id": "discover",
         "status": "pending",
+        "strategy": "REVERSE_ANALYSIS",
         "depends_on": [],
         "exit_artifacts": [".devforge/artifacts/summary.json"],
         "executor": "codex",
@@ -37,6 +38,7 @@ def test_node_definition_is_dict() -> None:
     node: NodeDefinition = {
         "id": "discover",
         "capability": "discovery",
+        "strategy": "REVERSE_ANALYSIS",
         "goal": "Scan the repo",
         "exit_artifacts": [".devforge/artifacts/summary.json"],
         "knowledge_refs": ["src/devforge/knowledge/content/capabilities/discovery.md"],

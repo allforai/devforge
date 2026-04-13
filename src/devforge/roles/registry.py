@@ -14,6 +14,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["product_concept", "requirement_events", "acceptance_goals"],
         allowed_phases=["concept_collect", "acceptance", "requirement_patch"],
         preferred_executors=["python", "claude_code"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/product-concept.md",
+            "knowledge/content/vault/capabilities/reverse-concept.md",
+            "knowledge/content/vault/feedback-protocol.md",
+        ],
     ),
     "execution_planner": RoleSpec(
         role_id="execution_planner",
@@ -24,6 +29,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["domain_graph", "task_graph", "work_packages"],
         allowed_phases=["concept_collect", "analysis_design", "requirement_patch"],
         preferred_executors=["python", "claude_code"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/discovery.md",
+            "knowledge/content/vault/cross-phase-protocols.md",
+            "knowledge/content/vault/learning-protocol.md",
+        ],
     ),
     "interaction_designer": RoleSpec(
         role_id="interaction_designer",
@@ -34,6 +44,10 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["user_flows", "interaction_specs", "wireframe_notes"],
         allowed_phases=["analysis_design", "requirement_patch"],
         preferred_executors=["claude_code", "opencode"],
+        sop_refs=[
+            "knowledge/content/vault/product-design-theory.md",
+            "knowledge/content/vault/design-audit-dimensions.md",
+        ],
     ),
     "ui_designer": RoleSpec(
         role_id="ui_designer",
@@ -44,6 +58,10 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["ui_specs", "component_guidelines", "screen_mock_descriptions"],
         allowed_phases=["analysis_design", "requirement_patch"],
         preferred_executors=["claude_code", "opencode"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/ui-design.md",
+            "knowledge/content/vault/design-audit-dimensions.md",
+        ],
     ),
     "technical_architect": RoleSpec(
         role_id="technical_architect",
@@ -54,6 +72,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["architecture_notes", "contracts", "integration_constraints", "risk_register"],
         allowed_phases=["analysis_design", "implementation", "requirement_patch"],
         preferred_executors=["claude_code", "codex"],
+        sop_refs=[
+            "knowledge/content/vault/governance-styles.md",
+            "knowledge/content/vault/capabilities/infra-design.md",
+            "knowledge/content/vault/static-analysis-checklist.md",
+        ],
     ),
     "software_engineer": RoleSpec(
         role_id="software_engineer",
@@ -64,6 +87,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["code_changes", "tests", "implementation_summary"],
         allowed_phases=["analysis_design", "implementation", "testing"],
         preferred_executors=["codex", "claude_code", "cline"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/design-to-spec.md",
+            "knowledge/content/vault/capabilities/translate.md",
+            "knowledge/content/vault/static-analysis-checklist.md",
+        ],
     ),
     "qa_engineer": RoleSpec(
         role_id="qa_engineer",
@@ -74,6 +102,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["test_results", "bug_reports", "acceptance_findings"],
         allowed_phases=["testing", "acceptance"],
         preferred_executors=["codex", "claude_code", "cline"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/test-verify.md",
+            "knowledge/content/vault/capabilities/product-verify.md",
+            "knowledge/content/vault/diagnosis.md",
+        ],
     ),
     "integration_owner": RoleSpec(
         role_id="integration_owner",
@@ -84,6 +117,11 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
         outputs=["integration_reports", "seam_findings", "release_gate_decision"],
         allowed_phases=["implementation", "testing", "acceptance", "requirement_patch"],
         preferred_executors=["python", "claude_code"],
+        sop_refs=[
+            "knowledge/content/vault/capabilities/pipeline-closure-verify.md",
+            "knowledge/content/vault/capabilities/spec-compliance-verify.md",
+            "knowledge/content/vault/governance-styles.md",
+        ],
     ),
 }
 
@@ -91,4 +129,3 @@ ROLE_REGISTRY: dict[str, RoleSpec] = {
 def get_role_spec(role_id: str) -> RoleSpec:
     """Look up a built-in role specification."""
     return ROLE_REGISTRY[role_id]
-

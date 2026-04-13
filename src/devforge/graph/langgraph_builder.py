@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from langgraph.graph import END, START, StateGraph
-
+from devforge.graph.langgraph_compat import END, START, StateGraph
 from devforge.graph.nodes import concept_collection_node, graph_validation_node, planning_and_shaping_node, project_scheduler_node
 from devforge.graph.runtime_state import RuntimeState
 from devforge.planning import apply_requirement_events

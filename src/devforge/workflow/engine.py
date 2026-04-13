@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import os
 import subprocess
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from devforge.executors.subprocess_transport import build_codex_command
 from devforge.workflow.models import (
     NodeDefinition,
     NodeManifestEntry,
+    NodeStrategy,
     TransitionEntry,
     WorkflowManifest,
     WorkflowStatus,
@@ -28,8 +30,98 @@ from devforge.workflow.store import (
     write_manifest,
 )
 
+_log = logging.getLogger(__name__)
+
 MAX_CONCURRENT = 3
 MAX_ATTEMPTS = 3
+_META_BUS_ROOT = Path(".allforai") / "devforge"
+_CODE_REPLICATE_ROOT = Path(".allforai") / "code-replicate"
+_MYSKILLS_ROOT = Path("/Users/aa/workspace/myskills")
+_CODE_REPLICATE_SCRIPT = _MYSKILLS_ROOT / "shared" / "scripts" / "code-replicate" / "cr_discover.py"
+_CODE_REPLICATE_PYTHONPATH = str(_CODE_REPLICATE_SCRIPT.parent)
+_AUDIT_CHECKLIST_REF = "knowledge/content/vault/static-analysis-checklist.md"
+_DIAGNOSIS_REF = "knowledge/content/vault/diagnosis.md"
+
+
+def _default_strategy(node: NodeDefinition | NodeManifestEntry) -> NodeStrategy | None:
+    capability = node.get("capability", "")
+    mode = node.get("mode")
+    if mode == "discovery" or capability in {"discovery", "product-analysis", "reverse-concept"}:
+        return "REVERSE_ANALYSIS"
+    if capability in {"compile-verify", "test-verify", "product-verify", "quality-checks", "spec-compliance-verify"}:
+        return "FULL_STACK_VALIDATION"
+    if capability in {"translate", "generate-artifacts", "tune", "coding"}:
+        return "TDD_REFACTOR"
+    if capability in {"infra-design", "architecture", "governance", "pipeline-closure-verify"}:
+        return "GOVERNANCE"
+    return None
+
+
+def resolve_node_strategy(node: NodeDefinition | NodeManifestEntry) -> NodeStrategy | None:
+    return node.get("strategy") or _default_strategy(node)
+
+
+def _child_nodes(manifest: WorkflowManifest, parent_id: str) -> list[NodeManifestEntry]:
+    return [n for n in manifest["nodes"] if n.get("parent_node_id") == parent_id]
+
+
+def _meta_node_id(kind: str, node_id: str, attempt_count: int) -> str:
+    return f"{kind}-{node_id}-a{attempt_count}"
+
+
+def _write_meta_node(root: Path, wf_id: str, node_def: NodeDefinition) -> None:
+    from devforge.workflow.store import write_node
+
+    write_node(root, wf_id, node_def)
+
+
+def _append_manifest_node(manifest: WorkflowManifest, node_def: NodeDefinition, *, parent_node_id: str | None = None) -> None:
+    manifest["nodes"].append({
+        "id": node_def["id"],
+        "status": "pending",
+        "strategy": resolve_node_strategy(node_def),
+        "depends_on": node_def.get("depends_on", []),
+        "exit_artifacts": node_def.get("exit_artifacts", []),
+        "executor": node_def.get("executor", "codex"),
+        "mode": node_def.get("mode"),
+        "parent_node_id": parent_node_id,
+        "depth": 1,
+        "attempt_count": 0,
+        "last_started_at": None,
+        "last_completed_at": None,
+        "last_error": None,
+        "pid": None,
+        "log_path": None,
+    })
+
+
+def _load_node_definition(root: Path, wf_id: str, node_id: str, fallback: NodeManifestEntry) -> NodeDefinition:
+    try:
+        node = read_node(root, wf_id, node_id)
+    except FileNotFoundError:
+        node = {
+            "id": fallback["id"],
+            "capability": "coding",
+            "strategy": fallback.get("strategy"),
+            "goal": fallback["id"],
+            "exit_artifacts": fallback.get("exit_artifacts", []),
+            "knowledge_refs": [],
+            "executor": fallback.get("executor", "codex"),
+            "mode": fallback.get("mode"),
+            "depends_on": fallback.get("depends_on", []),
+        }
+    if "strategy" not in node:
+        node["strategy"] = resolve_node_strategy(node)
+    return node
+
+
+def _diagnosis_ready(manifest: WorkflowManifest, node: NodeManifestEntry) -> bool:
+    attempt = node.get("attempt_count", 0)
+    diagnosis_id = _meta_node_id("diagnose", node["id"], attempt)
+    for child in _child_nodes(manifest, node["id"]):
+        if child["id"] == diagnosis_id and child.get("strategy") == "REVERSE_ANALYSIS":
+            return child["status"] == "completed"
+    return False
 
 
 def select_next_nodes(manifest: WorkflowManifest) -> list[NodeManifestEntry]:
@@ -43,6 +135,7 @@ def select_next_nodes(manifest: WorkflowManifest) -> list[NodeManifestEntry]:
         n for n in manifest["nodes"]
         if n["status"] in ("pending", "failed")
         and n.get("attempt_count", 0) < MAX_ATTEMPTS
+        and (n["status"] != "failed" or _diagnosis_ready(manifest, n))
         and set(n.get("depends_on", [])) <= completed_ids
     ][:slots]
 
@@ -56,6 +149,218 @@ def _is_process_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True  # exists but we can't signal it
+
+
+def _process_node_spawn(root: Path, manifest: WorkflowManifest, node: Any) -> bool:
+    """Inject dynamically spawned child nodes from a completed node's spawn.json."""
+    spawn_path = root / ".devforge" / "artifacts" / node["id"] / "spawn.json"
+    if not spawn_path.exists():
+        return False
+    try:
+        spawn_data = json.loads(spawn_path.read_text(encoding="utf-8"))
+        new_nodes = spawn_data.get("new_nodes", [])
+        existing_ids = {n["id"] for n in manifest["nodes"]}
+        for new_node in new_nodes:
+            if new_node["id"] in existing_ids:
+                continue
+            new_node["status"] = "pending"
+            new_node["strategy"] = new_node.get("strategy") or _default_strategy(new_node)
+            deps = new_node.get("depends_on") or []
+            if node["id"] not in deps:
+                deps.append(node["id"])
+            new_node["depends_on"] = deps
+            new_node.setdefault("parent_node_id", node["id"])
+            new_node.setdefault("depth", node.get("depth", 0) + 1)
+            new_node.setdefault("attempt_count", 0)
+            new_node.setdefault("last_started_at", None)
+            new_node.setdefault("last_completed_at", None)
+            new_node.setdefault("last_error", None)
+            new_node.setdefault("pid", None)
+            new_node.setdefault("log_path", None)
+            manifest["nodes"].append(new_node)
+        spawn_path.rename(spawn_path.with_name("spawn.processed.json"))
+        return True
+    except Exception:
+        _log.exception("Failed to process spawn.json for node %s", node["id"])
+        return False
+
+
+def process_all_node_spawns(root: Path, manifest: WorkflowManifest) -> WorkflowManifest:
+    """Check every completed node for spawn.json and expand the manifest accordingly."""
+    updated = copy.deepcopy(manifest)
+    for node in updated["nodes"]:
+        if node["status"] == "completed":
+            _process_node_spawn(root, updated, node)
+    return updated
+
+
+def _collect_audit_violations(root: Path, artifacts: list[str]) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+    for artifact in artifacts:
+        artifact_path = root / artifact
+        if not artifact_path.exists() or artifact_path.is_dir():
+            continue
+        try:
+            raw = artifact_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = None
+
+        if isinstance(payload, dict):
+            for key in ("architectural_smells", "audit_findings", "violations", "cross_layer_duplication", "missing_tests"):
+                value = payload.get(key)
+                if not value:
+                    continue
+                if isinstance(value, list):
+                    for item in value:
+                        violations.append({
+                            "code": key.upper(),
+                            "severity": "high",
+                            "evidence": f"{artifact}: {item}",
+                        })
+                else:
+                    violations.append({
+                        "code": key.upper(),
+                        "severity": "high",
+                        "evidence": f"{artifact}: {value}",
+                    })
+    return violations
+
+
+def _audit_node_outputs(root: Path, node: NodeManifestEntry, node_def: NodeDefinition) -> dict[str, Any]:
+    violations = _collect_audit_violations(root, node_def.get("exit_artifacts", []))
+    audit_dir = root / _META_BUS_ROOT / "audits"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    status = "needs_refactor" if violations else "pass"
+    summary = "Meta-skill governance audit passed."
+    if violations:
+        summary = f"Meta-skill governance audit found {len(violations)} architectural issue(s)."
+    audit = {
+        "node_id": node["id"],
+        "status": status,
+        "summary": summary,
+        "violations": violations,
+        "strategy": resolve_node_strategy(node_def),
+        "knowledge_refs": [_AUDIT_CHECKLIST_REF, "knowledge/content/vault/governance-styles.md"],
+    }
+    (audit_dir / f"{node['id']}.json").write_text(json.dumps(audit, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return audit
+
+
+def _ensure_meta_child(
+    root: Path,
+    manifest: WorkflowManifest,
+    parent: NodeManifestEntry,
+    node_def: NodeDefinition,
+) -> list[str]:
+    existing_ids = {n["id"] for n in manifest["nodes"]}
+    created: list[str] = []
+    strategy = resolve_node_strategy(node_def)
+    attempt = parent.get("attempt_count", 0)
+
+    if parent["status"] == "failed":
+        diagnosis_id = _meta_node_id("diagnose", parent["id"], attempt)
+        if diagnosis_id not in existing_ids:
+            diagnosis_path = _META_BUS_ROOT / "diagnosis" / f"{parent['id']}-a{attempt}.json"
+            diagnosis_node: NodeDefinition = {
+                "id": diagnosis_id,
+                "capability": "diagnosis",
+                "strategy": "REVERSE_ANALYSIS",
+                "goal": (
+                    f"Diagnose why node `{parent['id']}` failed. Read the failure logs, inspect existing artifacts, "
+                    f"follow the diagnosis protocol, and write a structured root-cause analysis to `{diagnosis_path}`."
+                ),
+                "exit_artifacts": [str(diagnosis_path)],
+                "knowledge_refs": [_DIAGNOSIS_REF, "knowledge/content/vault/capabilities/discovery.md"],
+                "executor": "codex",
+                "mode": None,
+                "depends_on": list(parent.get("depends_on", [])),
+            }
+            _write_meta_node(root, manifest["id"], diagnosis_node)
+            _append_manifest_node(manifest, diagnosis_node, parent_node_id=parent["id"])
+            created.append(diagnosis_id)
+
+    if parent["status"] == "completed" and strategy in {"FULL_STACK_VALIDATION", "TDD_REFACTOR"}:
+        verify_id = _meta_node_id("verify", parent["id"], attempt)
+        if verify_id not in existing_ids:
+            verify_path = _META_BUS_ROOT / "verification" / f"{parent['id']}-a{attempt}.json"
+            verify_node: NodeDefinition = {
+                "id": verify_id,
+                "capability": "full-stack-validation",
+                "strategy": "FULL_STACK_VALIDATION",
+                "goal": (
+                    f"Perform deterministic verification for node `{parent['id']}`. Validate the artifacts "
+                    f"produced by this node, inspect seams, and write the verification result to `{verify_path}`."
+                ),
+                "exit_artifacts": [str(verify_path)],
+                "knowledge_refs": [
+                    "knowledge/content/vault/capabilities/compile-verify.md",
+                    "knowledge/content/vault/capabilities/test-verify.md",
+                    "knowledge/content/vault/capabilities/spec-compliance-verify.md",
+                ],
+                "executor": "codex",
+                "mode": None,
+                "depends_on": list(parent.get("depends_on", [])),
+            }
+            _write_meta_node(root, manifest["id"], verify_node)
+            _append_manifest_node(manifest, verify_node, parent_node_id=parent["id"])
+            created.append(verify_id)
+
+    if parent["status"] == "needs_refactor":
+        refactor_id = _meta_node_id("refactor", parent["id"], attempt)
+        if refactor_id not in existing_ids:
+            audit_path = _META_BUS_ROOT / "audits" / f"{parent['id']}.json"
+            refactor_path = _META_BUS_ROOT / "refactors" / f"{parent['id']}-a{attempt}.json"
+            refactor_node: NodeDefinition = {
+                "id": refactor_id,
+                "capability": "refactor",
+                "strategy": "TDD_REFACTOR",
+                "goal": (
+                    f"Rectify the governance violations for node `{parent['id']}`. Read `{audit_path}`, apply "
+                    f"the static-analysis checklist, preserve or add tests, and write a short refactor summary to `{refactor_path}`."
+                ),
+                "exit_artifacts": [str(refactor_path)],
+                "knowledge_refs": [_AUDIT_CHECKLIST_REF, "knowledge/content/vault/capabilities/design-to-spec.md"],
+                "executor": "codex",
+                "mode": None,
+                "depends_on": list(parent.get("depends_on", [])),
+            }
+            _write_meta_node(root, manifest["id"], refactor_node)
+            _append_manifest_node(manifest, refactor_node, parent_node_id=parent["id"])
+            created.append(refactor_id)
+
+    return created
+
+
+def apply_strategy_postprocessing(
+    root: Path,
+    manifest: WorkflowManifest,
+    node: NodeManifestEntry,
+    node_def: NodeDefinition,
+) -> list[str]:
+    if "strategy" not in node:
+        node["strategy"] = resolve_node_strategy(node_def)
+    spawned: list[str] = []
+    if node["status"] == "completed" and resolve_node_strategy(node_def) == "GOVERNANCE":
+        audit = _audit_node_outputs(root, node, node_def)
+        if audit["violations"]:
+            node["status"] = "needs_refactor"
+            node["last_error"] = audit["summary"]
+    spawned.extend(_ensure_meta_child(root, manifest, node, node_def))
+    return spawned
+
+
+def _resolve_meta_parent_states(manifest: WorkflowManifest) -> None:
+    for node in manifest["nodes"]:
+        if node["status"] == "needs_refactor":
+            children = _child_nodes(manifest, node["id"])
+            if children and all(child["status"] == "completed" for child in children if child["id"].startswith("refactor-")):
+                node["status"] = "completed"
+                node["last_error"] = None
+                node["last_completed_at"] = _now()
 
 
 def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManifest:
@@ -72,29 +377,36 @@ def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManif
     updated = copy.deepcopy(manifest)
     for node in updated["nodes"]:
         if node.get("mode") in ("planning", "discovery"):
-            continue
+            continue  # artifact-based completion doesn't apply; spawns handled below
 
         if node["status"] == "running" and node.get("pid") is not None:
             if _is_process_alive(node["pid"]):
                 continue
             # Process has exited — fall through to artifact check
-            if node["exit_artifacts"] and check_artifacts(root, node["exit_artifacts"]):
+            node_def = _load_node_definition(root, updated["id"], node["id"], node)
+            if node.get("exit_artifacts", []) and check_artifacts(root, node.get("exit_artifacts", [])):
                 node["status"] = "completed"
                 node["last_error"] = None
                 node["last_completed_at"] = _now()
                 node["pid"] = None
+                apply_strategy_postprocessing(root, updated, node, node_def)
             else:
                 node["status"] = "failed"
                 node["last_error"] = "process exited without producing exit_artifacts"
                 node["last_completed_at"] = _now()
                 node["pid"] = None
+                apply_strategy_postprocessing(root, updated, node, node_def)
             continue
 
-        if node["status"] in ("pending", "running") and node["exit_artifacts"]:
-            if check_artifacts(root, node["exit_artifacts"]):
+        if node["status"] in ("pending", "running") and node.get("exit_artifacts", []):
+            if check_artifacts(root, node.get("exit_artifacts", [])):
+                node_def = _load_node_definition(root, updated["id"], node["id"], node)
                 node["status"] = "completed"
                 node["last_error"] = None
-    return updated
+                node["last_completed_at"] = _now()
+                apply_strategy_postprocessing(root, updated, node, node_def)
+    _resolve_meta_parent_states(updated)
+    return process_all_node_spawns(root, updated)
 
 
 _BUILTIN_KNOWLEDGE = Path(__file__).resolve().parent.parent / "knowledge" / "content"
@@ -105,13 +417,21 @@ def _load_knowledge(refs: list[str], root: Path) -> str:
 
     Resolution order:
     1. Project-local: root / ref
-    2. DevForge built-in: strip "knowledge/" prefix, look in package content dir
+    2. Source tree: root / "src/devforge" / ref
+    3. DevForge built-in: strip "knowledge/" or "knowledge/content/" prefix, look in package content dir
     """
     parts: list[str] = []
     for ref in refs:
         path = root / ref
         if not path.exists():
-            builtin_ref = ref[len("knowledge/"):] if ref.startswith("knowledge/") else ref
+            path = root / "src" / "devforge" / ref
+        if not path.exists():
+            if ref.startswith("knowledge/content/"):
+                builtin_ref = ref[len("knowledge/content/"):]
+            elif ref.startswith("knowledge/"):
+                builtin_ref = ref[len("knowledge/"):]
+            else:
+                builtin_ref = ref
             path = _BUILTIN_KNOWLEDGE / builtin_ref
         if path.exists():
             parts.append(path.read_text(encoding="utf-8"))
@@ -243,57 +563,134 @@ Rules:
         return {"returncode": 1, "output": "claude not found on PATH", "executor": "claude_code", "plan_written": False}
 
 
+def _build_semantic_snapshot(root: Path, source_summary: dict[str, Any]) -> dict[str, Any]:
+    modules = source_summary.get("modules", [])
+    module_map = {module.get("id"): module for module in modules}
+    module_paths = {module.get("id"): module.get("path", "") for module in modules}
+    directories = sorted({module.get("path", "").split(os.sep)[0] for module in modules if module.get("path")})
+
+    entry_points: list[str] = []
+    key_files: list[str] = []
+    mapped_modules: list[dict[str, Any]] = []
+    bounded_contexts: list[dict[str, str]] = []
+    architectural_insights: list[str] = []
+
+    for module in modules:
+        path = module.get("path", "")
+        key_file_names = module.get("key_files", [])
+        for file_name in key_file_names:
+            rel = str(Path(path) / file_name) if path else file_name
+            key_files.append(rel)
+            lowered = file_name.lower()
+            if lowered.startswith(("main.", "index.", "app.", "server.", "manage.")):
+                entry_points.append(rel)
+
+        dependencies = [module_paths.get(dep, dep) for dep in module.get("dependencies", [])]
+        mapped_modules.append({
+            "path": path,
+            "purpose": module.get("responsibility", ""),
+            "exports": list(module.get("exposed_interfaces", [])),
+            "depends_on": [dep for dep in dependencies if dep],
+        })
+
+        domain_role = "core" if any(token in path.lower() for token in ("core", "domain", "engine")) else "supporting"
+        bounded_contexts.append({
+            "name": path.replace(os.sep, ".") or module.get("id", "root"),
+            "path": path,
+            "role": domain_role,
+        })
+        if key_file_names:
+            first_key = str(Path(path) / key_file_names[0]) if path else key_file_names[0]
+            if dependencies:
+                architectural_insights.append(
+                    f"Main Entry Point found at {first_key}, depends on {', '.join(dependencies[:3])}"
+                )
+            else:
+                architectural_insights.append(f"Main Entry Point found at {first_key}, depends on no upstream modules")
+
+    tests = sorted(str(p.relative_to(root)) for p in root.rglob("test*.py"))
+    todos: list[str] = []
+    for file_path in root.rglob("*"):
+        if not file_path.is_file() or file_path.suffix.lower() not in {".py", ".ts", ".tsx", ".js", ".go", ".rs", ".java"}:
+            continue
+        try:
+            text = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for marker in ("TODO", "FIXME"):
+            if marker in text:
+                todos.append(f"{file_path.relative_to(root)}:{marker}")
+                break
+
+    return {
+        "scanned_at": _now(),
+        "root": str(root),
+        "structure": {
+            "directories": directories,
+            "entry_points": sorted(set(entry_points)),
+            "tech_stack": source_summary.get("project", {}).get("detected_stacks", []),
+            "key_files": sorted(set(key_files))[:25],
+        },
+        "modules": mapped_modules,
+        "semantics": {
+            "bounded_contexts": bounded_contexts,
+            "core_domains": [ctx["name"] for ctx in bounded_contexts if ctx["role"] == "core"],
+            "supporting_domains": [ctx["name"] for ctx in bounded_contexts if ctx["role"] == "supporting"],
+            "key_logic_flows": [
+                {
+                    "from": module.get("path", ""),
+                    "to": module_paths.get(dep, dep),
+                    "reason": module.get("responsibility", ""),
+                }
+                for module in modules for dep in module.get("dependencies", [])
+                if module_paths.get(dep, dep)
+            ],
+            "architectural_insights": architectural_insights[:20],
+        },
+        "existing_tests": tests,
+        "open_todos": todos[:50],
+        "source_summary_path": str(source_summary_path := (_CODE_REPLICATE_ROOT / "source-summary.json")),
+        "data_bus": ".allforai/",
+    }
+
+
 def _dispatch_discovery_node(
     node: NodeDefinition, root: Path,
 ) -> dict[str, Any]:
-    """Run a codebase discovery node with full tool access.
-
-    Claude scans the codebase and writes .devforge/artifacts/codebase_snapshot.json
-    with incremental update support.
-    """
+    """Run semantic discovery using the myskills code-replicate scanner."""
     snapshot_path = root / ".devforge" / "artifacts" / "codebase_snapshot.json"
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    source_summary_path = root / _CODE_REPLICATE_ROOT / "source-summary.json"
+    source_summary_path.parent.mkdir(parents=True, exist_ok=True)
+    if not _CODE_REPLICATE_SCRIPT.exists():
+        return {"returncode": 1, "output": f"code-replicate script not found: {_CODE_REPLICATE_SCRIPT}", "executor": "python3"}
 
-    existing_snapshot = ""
-    if snapshot_path.exists():
-        existing_snapshot = f"""
-A previous snapshot exists at {snapshot_path}.
-Read it first, then only re-scan files that have changed since the snapshot's "scanned_at" timestamp.
-Update the snapshot with new/changed files only (incremental update).
-"""
-
-    prompt = f"""Analyze the codebase at {root} and write a structured snapshot to {snapshot_path}.
-
-{existing_snapshot}
-
-The snapshot JSON must have this structure:
-{{"scanned_at": "ISO timestamp", "root": "{root}", "structure": {{"directories": ["list of key directories"], "entry_points": ["main files, CLI entry points"], "tech_stack": ["Python", "FastAPI", "etc"], "key_files": ["important files to understand the project"]}}, "modules": [{{"path": "relative/path/to/file.py", "purpose": "one line description", "exports": ["function/class names"], "depends_on": ["other/module.py"]}}], "existing_tests": ["list of test files"], "open_todos": ["any TODO/FIXME found in code"]}}
-
-Scan the codebase thoroughly. Read source files. Write the snapshot file directly.
-"""
-    prompt = prompt + _NON_INTERACTIVE_SUFFIX
-
-    cmd = [
-        "claude",
-        "--dangerously-skip-permissions",
-        "--allowedTools", "Read,Write,Bash",
-        "-p", prompt,
-    ]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = (
+        f"{_CODE_REPLICATE_PYTHONPATH}{os.pathsep}{env['PYTHONPATH']}"
+        if env.get("PYTHONPATH") else _CODE_REPLICATE_PYTHONPATH
+    )
+    cmd = ["python3", str(_CODE_REPLICATE_SCRIPT), str(root), str(source_summary_path)]
 
     try:
         proc = subprocess.run(
             cmd, cwd=root, capture_output=True, text=True,
+            env=env,
             timeout=_EXECUTOR_TIMEOUT,
         )
+        if proc.returncode == 0 and source_summary_path.exists():
+            summary = json.loads(source_summary_path.read_text(encoding="utf-8"))
+            snapshot = _build_semantic_snapshot(root, summary)
+            snapshot_path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         return {
             "returncode": proc.returncode,
             "output": (proc.stdout or proc.stderr or "").strip(),
-            "executor": "claude_code",
+            "executor": "python3",
         }
     except subprocess.TimeoutExpired:
-        return {"returncode": 1, "output": f"discovery timeout after {_EXECUTOR_TIMEOUT}s", "executor": "claude_code"}
+        return {"returncode": 1, "output": f"discovery timeout after {_EXECUTOR_TIMEOUT}s", "executor": "python3"}
     except FileNotFoundError:
-        return {"returncode": 1, "output": "claude not found on PATH", "executor": "claude_code"}
+        return {"returncode": 1, "output": "python3 not found on PATH", "executor": "python3"}
 
 
 def _write_run_log(root: Path, wf_id: str, node_id: str, started_at: str,

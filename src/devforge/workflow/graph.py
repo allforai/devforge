@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TypedDict
 
-from langgraph.graph import END, START, StateGraph
-
 import devforge.workflow.engine as _engine
+from devforge.graph.langgraph_compat import END, START, StateGraph
 from devforge.workflow.engine import (
     MAX_ATTEMPTS,
     _now,
@@ -78,6 +77,7 @@ def _dispatch_planning_node(
     else:
         entry["status"] = "failed"
         entry["last_error"] = output[:500] if output else "non-zero exit"
+    _engine.apply_strategy_postprocessing(root, manifest, entry, node_def)
 
     transition = {
         "node": entry["id"],
@@ -122,6 +122,7 @@ def _dispatch_discovery_node_sync(
     else:
         entry["status"] = "failed"
         entry["last_error"] = output[:500] if output else "non-zero exit"
+    _engine.apply_strategy_postprocessing(root, manifest, entry, node_def)
 
     transition = {
         "node": entry["id"],
@@ -156,6 +157,7 @@ def dispatch_nodes_node(state: WorkflowState) -> dict:
 
     for entry in state["candidates"]:
         node_def = read_node(root, wf_id, entry["id"])
+        entry["strategy"] = entry.get("strategy") or _engine.resolve_node_strategy(node_def)
         started_at = _now()
 
         entry["status"] = "running"
@@ -186,6 +188,7 @@ def dispatch_nodes_node(state: WorkflowState) -> dict:
                 entry["last_error"] = f"executor not found: {node_def.get('executor', 'codex')}"
                 entry["pid"] = None
                 entry["log_path"] = None
+                _engine.apply_strategy_postprocessing(root, manifest, entry, node_def)
             write_manifest(root, wf_id, manifest)
             dispatched.append(entry["id"])
 

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from devforge.workflow.models import NodeManifestEntry, NodeDefinition, WorkflowManifest, WorkflowIndex
@@ -8,6 +9,7 @@ from devforge.workflow.store import write_index, write_manifest, write_node, rea
 def _node(
     node_id: str,
     status: str = "pending",
+    strategy: str | None = None,
     depends_on: list[str] | None = None,
     exit_artifacts: list[str] | None = None,
     mode: str | None = None,
@@ -18,6 +20,7 @@ def _node(
     return {
         "id": node_id,
         "status": status,  # type: ignore[typeddict-item]
+        "strategy": strategy,
         "depends_on": depends_on or [],
         "exit_artifacts": exit_artifacts or [],
         "executor": "codex",
@@ -156,6 +159,7 @@ def _setup_workflow(
         node_def: NodeDefinition = {
             "id": node_id,
             "capability": "discovery",
+            "strategy": "REVERSE_ANALYSIS" if node_id.startswith("discover") else None,
             "goal": f"Run {node_id}",
             "exit_artifacts": [],
             "knowledge_refs": [],
@@ -295,6 +299,60 @@ def test_reconcile_skips_discovery_nodes(tmp_path: Path) -> None:
     assert updated["nodes"][0]["status"] == "pending"
 
 
+def test_reconcile_governance_violation_spawns_refactor(tmp_path: Path) -> None:
+    from devforge.workflow.store import write_node
+
+    artifact = tmp_path / "report.json"
+    artifact.write_text(json.dumps({"architectural_smells": ["cross-layer dependency leak"]}), encoding="utf-8")
+    nodes = [_node("governed", strategy="GOVERNANCE", exit_artifacts=["report.json"])]
+    manifest = _manifest(nodes)
+    node_def: NodeDefinition = {
+        "id": "governed",
+        "capability": "governance",
+        "strategy": "GOVERNANCE",
+        "goal": "Produce governed artifact",
+        "exit_artifacts": ["report.json"],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": [],
+    }
+    write_node(tmp_path, manifest["id"], node_def)
+
+    updated = reconcile_artifacts(tmp_path, manifest)
+    governed = next(node for node in updated["nodes"] if node["id"] == "governed")
+    refactor = next(node for node in updated["nodes"] if node["id"].startswith("refactor-governed-"))
+    assert governed["status"] == "needs_refactor"
+    assert refactor["status"] == "pending"
+
+
+def test_reconcile_failed_node_spawns_diagnosis(tmp_path: Path) -> None:
+    from devforge.workflow.store import write_node
+
+    nodes = [_node("build", status="running", strategy="TDD_REFACTOR", exit_artifacts=["out.json"], pid=12345)]
+    manifest = _manifest(nodes)
+    node_def: NodeDefinition = {
+        "id": "build",
+        "capability": "coding",
+        "strategy": "TDD_REFACTOR",
+        "goal": "Build artifact",
+        "exit_artifacts": ["out.json"],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": [],
+    }
+    write_node(tmp_path, manifest["id"], node_def)
+
+    with patch("devforge.workflow.engine.os.kill") as mock_kill:
+        mock_kill.side_effect = ProcessLookupError
+        updated = reconcile_artifacts(tmp_path, manifest)
+
+    diagnosis = next(node for node in updated["nodes"] if node["id"].startswith("diagnose-build-"))
+    assert diagnosis["status"] == "pending"
+    assert updated["nodes"][0]["status"] == "failed"
+
+
 # ---------------------------------------------------------------------------
 # _dispatch_planning_node_with_tools tests
 # ---------------------------------------------------------------------------
@@ -408,21 +466,30 @@ def test_dispatch_discovery_node_success(tmp_path: Path) -> None:
 
 def test_dispatch_discovery_node_incremental_prompt(tmp_path: Path) -> None:
     from devforge.workflow.engine import _dispatch_discovery_node
-    snapshot_path = tmp_path / ".devforge" / "artifacts" / "codebase_snapshot.json"
-    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    snapshot_path.write_text('{"scanned_at": "2026-04-11T00:00:00Z"}')
+    source_summary_path = tmp_path / ".allforai" / "code-replicate" / "source-summary.json"
+    source_summary_path.parent.mkdir(parents=True, exist_ok=True)
+    source_summary_path.write_text(json.dumps({
+        "project": {"detected_stacks": ["python", "fastapi"]},
+        "modules": [
+            {
+                "id": "M001",
+                "path": "src/api",
+                "responsibility": "Serve API entrypoints",
+                "exposed_interfaces": ["create_app"],
+                "dependencies": [],
+                "key_files": ["main.py"],
+            }
+        ],
+    }), encoding="utf-8")
 
     node_def: NodeDefinition = {
         "id": "discover", "capability": "discovery",
         "goal": "scan codebase", "exit_artifacts": [],
-        "knowledge_refs": [], "executor": "claude_code",
+        "knowledge_refs": [], "executor": "claude_code", "strategy": "REVERSE_ANALYSIS",
         "mode": "discovery", "depends_on": [],
     }
 
-    captured_cmd: list = []
-
     def fake_run(cmd, **kwargs):
-        captured_cmd.extend(cmd)
         m = MagicMock()
         m.returncode = 0
         m.stdout = "updated"
@@ -432,8 +499,8 @@ def test_dispatch_discovery_node_incremental_prompt(tmp_path: Path) -> None:
     with patch("devforge.workflow.engine.subprocess.run", side_effect=fake_run):
         _dispatch_discovery_node(node_def, tmp_path)
 
-    prompt_text = " ".join(captured_cmd)
-    assert "incremental update" in prompt_text
+    snapshot = json.loads((tmp_path / ".devforge" / "artifacts" / "codebase_snapshot.json").read_text(encoding="utf-8"))
+    assert snapshot["semantics"]["architectural_insights"][0].startswith("Main Entry Point found at")
 
 
 from devforge.session import UserIntent

@@ -17,3 +17,4 @@ class RoleSpec:
     outputs: list[str] = field(default_factory=list)
     allowed_phases: list[str] = field(default_factory=list)
     preferred_executors: list[str] = field(default_factory=list)
+    sop_refs: list[str] = field(default_factory=list)
