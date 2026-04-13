@@ -66,6 +66,24 @@ def _child_nodes(manifest: WorkflowManifest, parent_id: str) -> list[NodeManifes
     return [n for n in manifest["nodes"] if n.get("parent_node_id") == parent_id]
 
 
+def _dependency_descendants(manifest: WorkflowManifest, node_id: str) -> list[NodeManifestEntry]:
+    descendants: list[NodeManifestEntry] = []
+    frontier = [node_id]
+    seen = {node_id}
+    while frontier:
+        current = frontier.pop()
+        for candidate in manifest["nodes"]:
+            candidate_id = candidate["id"]
+            if candidate_id in seen:
+                continue
+            if current not in candidate.get("depends_on", []):
+                continue
+            descendants.append(candidate)
+            frontier.append(candidate_id)
+            seen.add(candidate_id)
+    return descendants
+
+
 def _meta_node_id(kind: str, node_id: str, attempt_count: int) -> str:
     return f"{kind}-{node_id}-a{attempt_count}"
 
@@ -116,6 +134,13 @@ def _load_node_definition(root: Path, wf_id: str, node_id: str, fallback: NodeMa
     return node
 
 
+def _is_meta_node(node_def: NodeDefinition | None, node: NodeManifestEntry) -> bool:
+    capability = node_def.get("capability") if node_def else None
+    if capability in {"diagnosis", "full-stack-validation", "refactor"}:
+        return True
+    return node["id"].startswith(("diagnose-", "verify-", "refactor-"))
+
+
 def _diagnosis_ready(manifest: WorkflowManifest, node: NodeManifestEntry) -> bool:
     attempt = node.get("attempt_count", 0)
     diagnosis_id = _meta_node_id("diagnose", node["id"], attempt)
@@ -134,7 +159,7 @@ def select_next_nodes(manifest: WorkflowManifest) -> list[NodeManifestEntry]:
         return []
     return [
         n for n in manifest["nodes"]
-        if n["status"] in ("pending", "failed")
+        if n["status"] in ("pending", "failed", "stale")
         and n.get("attempt_count", 0) < MAX_ATTEMPTS
         and (n["status"] != "failed" or _diagnosis_ready(manifest, n))
         and set(n.get("depends_on", [])) <= completed_ids
@@ -192,6 +217,107 @@ def process_all_node_spawns(root: Path, manifest: WorkflowManifest) -> WorkflowM
     for node in updated["nodes"]:
         if node["status"] == "completed":
             _process_node_spawn(root, updated, node)
+    return updated
+
+
+def _remove_artifact_paths(root: Path, paths: list[str]) -> None:
+    for artifact in paths:
+        artifact_path = root / artifact
+        if not artifact_path.exists():
+            continue
+        if artifact_path.is_dir():
+            for child in sorted(artifact_path.rglob("*"), key=lambda path: len(path.parts), reverse=True):
+                if child.is_file() or child.is_symlink():
+                    child.unlink(missing_ok=True)
+                elif child.is_dir():
+                    child.rmdir()
+            artifact_path.rmdir()
+            continue
+        artifact_path.unlink()
+
+
+def _mark_node_pending(node: NodeManifestEntry) -> None:
+    node["status"] = "pending"
+    node["last_error"] = None
+    node["last_started_at"] = None
+    node["last_completed_at"] = None
+    node["pid"] = None
+    node["log_path"] = None
+
+
+def _mark_node_stale(node: NodeManifestEntry, *, rewind_source: str) -> None:
+    node["status"] = "stale"
+    node["last_error"] = f"stale due to rewind from `{rewind_source}`"
+    node["pid"] = None
+    node["log_path"] = None
+
+
+def _process_node_rewind(root: Path, manifest: WorkflowManifest, node: NodeManifestEntry) -> bool:
+    rewind_path = root / ".devforge" / "artifacts" / node["id"] / "rewind.json"
+    if not rewind_path.exists():
+        return False
+
+    try:
+        payload = json.loads(rewind_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _log.exception("Failed to parse rewind.json for node %s", node["id"])
+        return False
+
+    if not isinstance(payload, dict):
+        _log.warning("Ignoring non-object rewind.json for node %s", node["id"])
+        return False
+
+    target_node_id = payload.get("target_node_id")
+    if not isinstance(target_node_id, str) or not target_node_id:
+        _log.warning("Ignoring rewind.json without target_node_id for node %s", node["id"])
+        return False
+
+    target = next((entry for entry in manifest["nodes"] if entry["id"] == target_node_id), None)
+    if target is None:
+        _log.warning("Ignoring rewind.json for unknown target %s from node %s", target_node_id, node["id"])
+        return False
+
+    reason = payload.get("reason")
+    rationale = reason if isinstance(reason, str) and reason else f"rewind requested by {node['id']}"
+    _remove_artifact_paths(root, target.get("exit_artifacts", []))
+    _mark_node_pending(target)
+    append_transition(root, manifest["id"], {
+        "node": target["id"],
+        "status": "rewinding",
+        "started_at": _now(),
+        "completed_at": _now(),
+        "artifacts_created": [],
+        "error": rationale,
+    })
+
+    for descendant in _dependency_descendants(manifest, target["id"]):
+        node_def = _load_node_definition(root, manifest["id"], descendant["id"], descendant)
+        if _is_meta_node(node_def, descendant):
+            continue
+        _remove_artifact_paths(root, descendant.get("exit_artifacts", []))
+        _mark_node_stale(descendant, rewind_source=target["id"])
+        append_transition(root, manifest["id"], {
+            "node": descendant["id"],
+            "status": "stale",
+            "started_at": _now(),
+            "completed_at": _now(),
+            "artifacts_created": [],
+            "error": rationale,
+        })
+
+    rewind_path.rename(rewind_path.with_name("rewind.processed.json"))
+    return True
+
+
+def process_all_node_rewinds(root: Path, manifest: WorkflowManifest) -> WorkflowManifest:
+    updated = copy.deepcopy(manifest)
+    for node in updated["nodes"]:
+        if node["status"] != "completed":
+            continue
+        node_def = _load_node_definition(root, updated["id"], node["id"], node)
+        if node_def.get("capability") != "diagnosis":
+            continue
+        _process_node_rewind(root, updated, node)
     return updated
 
 
@@ -272,7 +398,10 @@ def _ensure_meta_child(
                 "strategy": "REVERSE_ANALYSIS",
                 "goal": (
                     f"Diagnose why node `{parent['id']}` failed. Read the failure logs, inspect existing artifacts, "
-                    f"follow the diagnosis protocol, and write a structured root-cause analysis to `{diagnosis_path}`."
+                    f"follow the diagnosis protocol, and write a structured root-cause analysis to `{diagnosis_path}`. "
+                    f"If the failure is a gap in foundation or missing upstream logic, also write "
+                    f"`.devforge/artifacts/{diagnosis_id}/rewind.json` with at least "
+                    f'{{"target_node_id": "<upstream-node-id>", "reason": "<why rewind is needed>"}}.'
                 ),
                 "exit_artifacts": [str(diagnosis_path)],
                 "knowledge_refs": [_DIAGNOSIS_REF, "knowledge/content/vault/capabilities/discovery.md"],
@@ -407,7 +536,7 @@ def reconcile_artifacts(root: Path, manifest: WorkflowManifest) -> WorkflowManif
                 node["last_completed_at"] = _now()
                 apply_strategy_postprocessing(root, updated, node, node_def)
     _resolve_meta_parent_states(updated)
-    return process_all_node_spawns(root, updated)
+    return process_all_node_spawns(root, process_all_node_rewinds(root, updated))
 
 
 _BUILTIN_KNOWLEDGE = Path(__file__).resolve().parent.parent / "knowledge" / "content"
@@ -878,6 +1007,7 @@ def _write_status_json(root: Path, wf_id: str, manifest: WorkflowManifest,
     failed    = [n for n in manifest["nodes"] if n["status"] == "failed"]
     running   = [n for n in manifest["nodes"] if n["status"] == "running"]
     pending   = [n for n in manifest["nodes"] if n["status"] == "pending"]
+    stale     = [n for n in manifest["nodes"] if n["status"] == "stale"]
     total     = len(manifest["nodes"])
 
     status = {
@@ -889,6 +1019,7 @@ def _write_status_json(root: Path, wf_id: str, manifest: WorkflowManifest,
             "failed": len(failed),
             "running": len(running),
             "pending": len(pending),
+            "stale": len(stale),
             "total": total,
         },
         "active_nodes": [n["id"] for n in running],

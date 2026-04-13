@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from devforge.workflow.models import NodeManifestEntry, NodeDefinition, WorkflowManifest, WorkflowIndex
 from devforge.workflow.engine import select_next_nodes, reconcile_artifacts, run_one_cycle, _build_executor_cmd, _load_knowledge
-from devforge.workflow.store import write_index, write_manifest, write_node, read_manifest, read_index, read_pull_events
+from devforge.workflow.store import write_index, write_manifest, write_node, read_manifest, read_index, read_pull_events, read_node
 
 
 def _node(
@@ -60,6 +60,12 @@ def test_select_next_nodes_respects_deps() -> None:
 
 def test_select_next_nodes_dep_completed() -> None:
     manifest = _manifest([_node("a", status="completed"), _node("b", depends_on=["a"])])
+    result = select_next_nodes(manifest)
+    assert [n["id"] for n in result] == ["b"]
+
+
+def test_select_next_nodes_includes_stale_nodes_when_ready() -> None:
+    manifest = _manifest([_node("a", status="completed"), _node("b", status="stale", depends_on=["a"])])
     result = select_next_nodes(manifest)
     assert [n["id"] for n in result] == ["b"]
 
@@ -349,8 +355,97 @@ def test_reconcile_failed_node_spawns_diagnosis(tmp_path: Path) -> None:
         updated = reconcile_artifacts(tmp_path, manifest)
 
     diagnosis = next(node for node in updated["nodes"] if node["id"].startswith("diagnose-build-"))
+    diagnosis_def = read_node(tmp_path, manifest["id"], diagnosis["id"])
     assert diagnosis["status"] == "pending"
+    assert "rewind.json" in diagnosis_def["goal"]
     assert updated["nodes"][0]["status"] == "failed"
+
+
+def test_reconcile_diagnosis_rewind_resets_target_and_marks_descendants_stale(tmp_path: Path) -> None:
+    from devforge.workflow.store import read_transitions, write_node
+
+    (tmp_path / "foundation.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "implementation.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "validation.json").write_text("{}", encoding="utf-8")
+
+    nodes = [
+        _node("foundation", status="completed", exit_artifacts=["foundation.json"]),
+        _node("implementation", status="completed", depends_on=["foundation"], exit_artifacts=["implementation.json"]),
+        _node("validation", status="completed", depends_on=["implementation"], exit_artifacts=["validation.json"]),
+        _node("diagnose-validation-a1", status="completed", depends_on=["implementation"]),
+    ]
+    manifest = _manifest(nodes)
+
+    write_node(tmp_path, manifest["id"], {
+        "id": "foundation",
+        "capability": "product-analysis",
+        "strategy": "REVERSE_ANALYSIS",
+        "goal": "Define the foundation",
+        "exit_artifacts": ["foundation.json"],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": [],
+    })
+    write_node(tmp_path, manifest["id"], {
+        "id": "implementation",
+        "capability": "coding",
+        "strategy": "TDD_REFACTOR",
+        "goal": "Implement the feature",
+        "exit_artifacts": ["implementation.json"],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": ["foundation"],
+    })
+    write_node(tmp_path, manifest["id"], {
+        "id": "validation",
+        "capability": "test-verify",
+        "strategy": "FULL_STACK_VALIDATION",
+        "goal": "Validate the feature",
+        "exit_artifacts": ["validation.json"],
+        "knowledge_refs": [],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": ["implementation"],
+    })
+    write_node(tmp_path, manifest["id"], {
+        "id": "diagnose-validation-a1",
+        "capability": "diagnosis",
+        "strategy": "REVERSE_ANALYSIS",
+        "goal": "Diagnose the failure",
+        "exit_artifacts": [".allforai/devforge/diagnosis/validation-a1.json"],
+        "knowledge_refs": ["knowledge/content/vault/diagnosis.md"],
+        "executor": "codex",
+        "mode": None,
+        "depends_on": ["implementation"],
+    })
+
+    rewind_dir = tmp_path / ".devforge" / "artifacts" / "diagnose-validation-a1"
+    rewind_dir.mkdir(parents=True, exist_ok=True)
+    (rewind_dir / "rewind.json").write_text(
+        json.dumps({"target_node_id": "foundation", "reason": "Gap in foundation"}),
+        encoding="utf-8",
+    )
+
+    updated = reconcile_artifacts(tmp_path, manifest)
+
+    foundation = next(node for node in updated["nodes"] if node["id"] == "foundation")
+    implementation = next(node for node in updated["nodes"] if node["id"] == "implementation")
+    validation = next(node for node in updated["nodes"] if node["id"] == "validation")
+    diagnosis = next(node for node in updated["nodes"] if node["id"] == "diagnose-validation-a1")
+
+    assert foundation["status"] == "pending"
+    assert implementation["status"] == "stale"
+    assert validation["status"] == "stale"
+    assert diagnosis["status"] == "completed"
+    assert not (tmp_path / "foundation.json").exists()
+    assert not (tmp_path / "implementation.json").exists()
+    assert not (tmp_path / "validation.json").exists()
+    assert (rewind_dir / "rewind.processed.json").exists()
+
+    transitions = read_transitions(tmp_path, manifest["id"])
+    assert [entry["status"] for entry in transitions] == ["rewinding", "stale", "stale"]
 
 
 # ---------------------------------------------------------------------------

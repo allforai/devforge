@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, TypedDict, NotRequired
 
-NodeStatus = Literal["pending", "running", "completed", "failed", "needs_refactor"]
+NodeStatus = Literal["pending", "running", "completed", "failed", "needs_refactor", "stale"]
 
 # Engine-internal phase (stored in manifest.workflow_status)
 WorkflowPhase = Literal["planning", "awaiting_confirm", "running", "complete", "failed"]
@@ -14,7 +14,7 @@ WorkflowStatus = Literal["active", "complete", "paused", "failed"]
 
 NodeMode = Literal["planning", "discovery"]
 
-TransitionStatus = Literal["completed", "failed", "needs_refactor"]
+TransitionStatus = Literal["completed", "failed", "needs_refactor", "stale", "rewinding"]
 NodeStrategy = Literal["REVERSE_ANALYSIS", "FULL_STACK_VALIDATION", "TDD_REFACTOR", "GOVERNANCE"]
 
 

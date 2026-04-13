@@ -34,6 +34,27 @@ def test_node_manifest_entry_is_dict() -> None:
     assert entry["mode"] is None
 
 
+def test_node_manifest_entry_supports_stale_status() -> None:
+    entry: NodeManifestEntry = {
+        "id": "translate",
+        "status": "stale",
+        "strategy": "TDD_REFACTOR",
+        "depends_on": ["feature-gap"],
+        "exit_artifacts": ["src/app.py"],
+        "executor": "codex",
+        "mode": None,
+        "parent_node_id": None,
+        "depth": 0,
+        "attempt_count": 2,
+        "last_started_at": None,
+        "last_completed_at": None,
+        "last_error": "stale due to rewind",
+        "pid": None,
+        "log_path": None,
+    }
+    assert entry["status"] == "stale"
+
+
 def test_node_definition_is_dict() -> None:
     node: NodeDefinition = {
         "id": "discover",
