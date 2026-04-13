@@ -1,0 +1,63 @@
+{
+  "session": {
+    "session_id": "session-p1",
+    "project_id": "p1",
+    "active_phase": "implementation",
+    "active_feature": "wp-1",
+    "current_node_revision_ids": [
+      "wp-1"
+    ],
+    "recommended_next_action": "Say '继续' when you want to resume from the latest cycle.",
+    "active_run_ids": [
+      "codex:wp-1"
+    ],
+    "suspended_run_ids": [],
+    "last_state_transition_ids": [
+      "transition:codex:wp-1"
+    ],
+    "mode": "waiting_user"
+  },
+  "view": {
+    "focus": "main",
+    "attached_run_id": null,
+    "selected_run_id": null,
+    "show_state_timeline": true,
+    "show_executor_board": true
+  },
+  "runs": [
+    {
+      "run_id": "codex:wp-1",
+      "executor": "codex",
+      "title": "wp-1",
+      "status": "completed",
+      "trigger_ref": "wp-1",
+      "related_node_ids": [
+        "wp-1"
+      ],
+      "summary": "stub execution completed",
+      "latest_output": "{\n  \"execution_id\": \"codex:wp-1\",\n  \"executor\": \"codex\",\n  \"work_package_id\": \"wp-1\",\n  \"cycle_id\": \"cycle-0001\",\n  \"status\": \"completed\",\n  \"summary\": \"stub execution completed\",\n  \"execution_ref\": {\n    \"cycle_id\": \"cycle-0001\",\n    \"work_package_id\": \"wp-1\",\n    \"executor\": \"codex\",\n    \"execution_id\": \"codex:wp-1\"\n  },\n  \"artifacts_created\": [],\n  \"artifacts_modified\": [],\n  \"tests_run\": [],\n  \"findings\": [],\n  \"handoff_notes\": [],\n  \"raw_output_ref\": null,\n  \"started_at\": null,\n  \"completed_at\": null\n}",
+      "created_at": null,
+      "updated_at": null
+    }
+  ],
+  "transitions": [
+    {
+      "transition_id": "transition:codex:wp-1",
+      "object_type": "run",
+      "object_id": "codex:wp-1",
+      "before": "running",
+      "after": "completed",
+      "reason": "stub execution completed",
+      "created_at": null
+    },
+    {
+      "transition_id": "session:cycle-0001",
+      "object_type": "session",
+      "object_id": "i1",
+      "before": "waiting_user",
+      "after": "waiting_user",
+      "reason": "cycle cycle-0001 completed for phase implementation",
+      "created_at": null
+    }
+  ]
+}

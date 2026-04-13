@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0004-acceptance-goals",
+  "content": "[\n  \"collect concept model for devforge\",\n  \"clarify general\",\n  \"clarify acceptance\",\n  \"clarify core\",\n  \"clarify integration_owner\"\n]",
+  "metadata": {
+    "kind": "acceptance_goals",
+    "cycle_id": "cycle-0004"
+  }
+}

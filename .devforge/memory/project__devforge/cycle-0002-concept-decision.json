@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0002-concept-decision",
+  "content": "{\n  \"phase\": \"analysis_design\",\n  \"goal\": \"collect concept model for devforge\",\n  \"focus_areas\": [\n    \"general\",\n    \"analysis_design\",\n    \"core\",\n    \"technical_architect\"\n  ],\n  \"questions\": [\n    \"What is the primary user experience or outcome?\",\n    \"Which domains are core versus optional in the first iteration?\"\n  ],\n  \"required_artifacts\": [\n    \"concept_brief.md\",\n    \"acceptance_goals.json\"\n  ],\n  \"rationale\": \"collect concept inputs before detailed planning and execution\",\n  \"source\": \"mock:mock-structured-v1\",\n  \"confidence\": 0.76,\n  \"notes\": [\n    \"concept decision derived from project archetype and selected knowledge\",\n    \"focus areas limited for layered disclosure\"\n  ]\n}",
+  "metadata": {
+    "kind": "concept_decision",
+    "cycle_id": "cycle-0002"
+  }
+}

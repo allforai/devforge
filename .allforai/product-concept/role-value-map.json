@@ -1,0 +1,83 @@
+{
+  "roles": [
+    {
+      "id": "integrator",
+      "name": "Integrator (CLI User)",
+      "jobs": [
+        "Bootstrap an existing repository into DevForge via 'devforge init' or 'devforge init --workspace'",
+        "Run predefined fixture cycles to validate environment setup ('devforge fixture game_project')",
+        "Execute a snapshot cycle against their own project ('devforge snapshot .devforge/devforge.snapshot.json')",
+        "Check executor readiness before running live cycles ('devforge doctor')",
+        "Read structured cycle summary (cycle_id, dispatch_count, result_statuses) from CLI output"
+      ],
+      "pains": [
+        "AI-tool CLIs (claude, codex) have inconsistent CLI interfaces that change without notice",
+        "Chat-based dev tools lose context across sessions, forcing repeated re-explanation",
+        "No structured way to resume a partially completed development cycle after interruption",
+        "Hard to see which AI tool did what work and why"
+      ],
+      "gains": [
+        "devforge init writes all preferences to .devforge/ so subsequent runs require no re-configuration",
+        "Wizard-style init hides llm_preferences/pull_policy_overrides behind human-friendly presets (auto/offline/live, balanced/implementation/testing)",
+        "Snapshot file provides auditable record of all work packages and their statuses",
+        "Fixture cycles with game_project and ecommerce_project let integrators verify setup without a real project"
+      ],
+      "operation_profile": {
+        "frequency": "daily",
+        "primary_interface": "CLI"
+      }
+    },
+    {
+      "id": "extender",
+      "name": "Extender (Adapter Implementer)",
+      "jobs": [
+        "Implement a custom ExecutorAdapter for a new AI CLI tool by satisfying the ExecutorAdapter Protocol",
+        "Register a custom adapter in EXECUTOR_REGISTRY via register_executor_adapter()",
+        "Override per-project executor routing via ExecutorPolicy (by_phase / by_domain / by_role / by_work_package)",
+        "Tune context pull budgets via pull_policy_overrides in devforge.project_config.json",
+        "Define project-specific knowledge preferences for different archetypes"
+      ],
+      "pains": [
+        "Executor CLI tools (codex, cline, opencode) have wildly different invocation semantics",
+        "Wiring new backends into orchestration frameworks usually requires touching scheduling logic",
+        "No standard way to control how much context an AI executor receives per task"
+      ],
+      "gains": [
+        "ExecutorAdapter Protocol (src/devforge/executors/base.py:62-109) provides 11 explicit method contracts — implement and register, done",
+        "SubprocessTransport handles submit/poll/cancel lifecycle, so custom adapters only need to build the CLI argv array",
+        "EXECUTOR_CAPABILITIES registry (src/devforge/executors/capabilities.py) separates capability metadata from adapter logic",
+        "PullPolicyRule system means context budget tuning requires no code changes, only config"
+      ],
+      "operation_profile": {
+        "frequency": "occasional",
+        "primary_interface": "Python API"
+      }
+    },
+    {
+      "id": "contributor",
+      "name": "Contributor (Graph Modifier)",
+      "jobs": [
+        "Add new meta-graph nodes or modify existing node functions in src/devforge/graph/nodes.py",
+        "Extend RuntimeState with new fields to carry state between nodes",
+        "Add new planning decision chains (LLM-backed deciders in src/devforge/planning/)",
+        "Implement new role specs in ROLE_REGISTRY",
+        "Write integration tests using fixture snapshots and MockLLMClient"
+      ],
+      "pains": [
+        "LangGraph's raw API exposes too much graph wiring detail for each new node",
+        "Testing graph-level behavior requires complex setup with real LLM calls",
+        "State management across heterogeneous graph nodes tends to become implicit dict mutation"
+      ],
+      "gains": [
+        "RuntimeState is a typed dataclass (src/devforge/graph/runtime_state.py:9-53) — new fields are explicit and IDE-visible",
+        "MockLLMClient (src/devforge/llm/mock.py) + fixture JSONs enable full cycle tests without network access",
+        "Planning module uses consistent decider pattern: llm_*_decider() functions with StructuredGenerationRequest/Response",
+        "256 tests serve as regression baseline — contributor knows immediately if a change breaks existing behavior"
+      ],
+      "operation_profile": {
+        "frequency": "weekly",
+        "primary_interface": "Python API"
+      }
+    }
+  ]
+}

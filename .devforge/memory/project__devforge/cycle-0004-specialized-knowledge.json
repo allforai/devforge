@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0004-specialized-knowledge",
+  "content": "{\n  \"focus\": [\n    \"general\",\n    \"acceptance\",\n    \"core\",\n    \"integration_owner\"\n  ],\n  \"knowledge_ids\": [\n    \"phase.testing\"\n  ],\n  \"titles\": [\n    \"Testing and Verification\"\n  ],\n  \"tags\": [\n    \"acceptance\",\n    \"qa\",\n    \"regression\",\n    \"testing\",\n    \"verification\"\n  ],\n  \"summary\": \"Verification strategy, seam-focused QA, regression checks, and acceptance closure.\"\n}",
+  "metadata": {
+    "kind": "specialized_knowledge",
+    "cycle_id": "cycle-0004"
+  }
+}

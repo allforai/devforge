@@ -1,0 +1,10 @@
+{
+  "id": "fix-engine-import-timeout",
+  "capability": "code-edit",
+  "goal": "Edit /Users/aa/workspace/devforge/src/devforge/workflow/engine.py:\n1. Add 'import os' on a new line after 'import copy' (which is at approximately line 5).\n2. Change the line '_EXECUTOR_TIMEOUT = 300  # seconds' to:\n   _EXECUTOR_TIMEOUT = int(os.environ.get(\"DEVFORGE_EXECUTOR_TIMEOUT\", \"600\"))\nNo other changes. Verify the file still imports cleanly by checking for syntax errors.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": []
+}

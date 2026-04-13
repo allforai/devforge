@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "devforge": {
+      "llm_preferences": {},
+      "knowledge_preferences": {
+        "preferred_ids": [],
+        "excluded_ids": []
+      },
+      "pull_policy_overrides": []
+    }
+  }
+}

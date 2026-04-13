@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "personas": [
+    {
+      "id": "integrator",
+      "name": "CLI User (Integrator)",
+      "level": "beginner",
+      "primary_jtbd": "Bootstrap an existing repository into DevForge, run orchestration cycles against it, and inspect structured results — without understanding graph nodes or Protocol internals.",
+      "frequency": "daily",
+      "primary_interface": "CLI",
+      "success_looks_like": "devforge init succeeds and writes .devforge/. devforge fixture game_project returns JSON with cycle_id + dispatches. devforge doctor shows at least one executor as 'ok'. devforge snapshot .devforge/devforge.snapshot.json completes a cycle without errors.",
+      "current_pain_points": [
+        "No Getting Started tutorial in English that walks through init → snapshot → cycle in 5 minutes",
+        "README.md is in Chinese — English-speaking users have no primary entry point",
+        "No snapshot schema reference — first-time users don't know what fields are required in a snapshot JSON",
+        "devforge doctor output is structured JSON but no docs explain how to act on 'blocked' vs 'missing' status",
+        "No example showing how to recover from a partial cycle (e.g., executor failed mid-run) using persistence"
+      ],
+      "evidence": [
+        "src/devforge/main.py:22-39 — LLM_SETUP_PRESETS wizard hides complexity",
+        "docs/cli.md:1-80 — CLI surface exists but is reference-only, no narrative walkthrough",
+        "README.md:24-66 — Quick Start exists in Chinese only",
+        "tests/test_main_cli.py:12-20 — fixture command integration test shows expected JSON output shape"
+      ]
+    },
+    {
+      "id": "extender",
+      "name": "Adapter Implementer (Extender)",
+      "level": "intermediate",
+      "primary_jtbd": "Wire a new AI CLI tool (e.g., aider, cursor, a custom script) into DevForge as a first-class executor, or tune per-project context pull budgets and LLM routing without modifying graph code.",
+      "frequency": "occasional",
+      "primary_interface": "Python API",
+      "success_looks_like": "Custom ExecutorAdapter satisfies Protocol. register_executor_adapter() call succeeds. Custom executor appears in devforge doctor checks. project_config.json with pull_policy_overrides is applied and visible in dispatch metadata.",
+      "current_pain_points": [
+        "No 'Build Your First Executor Adapter' how-to guide — the only documentation is the Protocol definition in base.py",
+        "submit vs submit_request vs dispatch method chain is undocumented — implementers have to read BaseExecutorAdapter source to understand which methods to override",
+        "No documented testing recipe for custom adapters without live CLI tools",
+        "pull_policy_overrides schema in docs/project-config.md is incomplete — no examples of ref_patterns or budget fields",
+        "SubprocessTransport lifecycle (submit/poll/cancel) is not documented as the recommended base for new adapters"
+      ],
+      "evidence": [
+        "src/devforge/executors/base.py:62-109 — ExecutorAdapter Protocol (11 methods)",
+        "src/devforge/executors/adapters.py:26-100 — BaseExecutorAdapter with stub fallback",
+        "docs/project-config.md:59-80 — pull_policy_overrides partially documented",
+        "src/devforge/executors/registry.py — register_executor_adapter function"
+      ]
+    },
+    {
+      "id": "contributor",
+      "name": "Graph Modifier (Contributor)",
+      "level": "advanced",
+      "primary_jtbd": "Add new meta-graph nodes, extend RuntimeState with new lifecycle fields, or replace planning decision chains (concept, planning, retry) while keeping the 256-test suite green.",
+      "frequency": "weekly",
+      "primary_interface": "Python API",
+      "success_looks_like": "New node composes with existing nodes via RuntimeState dataclass extension. MockLLMClient-based cycle tests pass for the new node. 256 existing tests remain green without live network calls.",
+      "current_pain_points": [
+        "No contributor guide explaining the node composition pattern (RuntimeState mutation → return state contract)",
+        "LangGraph wiring in langgraph_builder.py is not documented — contributors must reverse-engineer the StateGraph edges to understand how to add a new node",
+        "META_GRAPH_NODES and NEXT_STEP_BY_EVENT in skeleton.py are not obviously the right place to register new nodes",
+        "No explanation of why LangGraph was chosen and what the bounded-statelessness contract means for node functions",
+        "PLAN.md phase descriptions are outdated (C002, C003) creating wrong maturity expectations for contributors"
+      ],
+      "evidence": [
+        "src/devforge/graph/nodes.py — node functions (concept_collection_node, planning_and_shaping_node, etc.)",
+        "src/devforge/graph/langgraph_builder.py — StateGraph wiring",
+        "src/devforge/graph/skeleton.py — META_GRAPH_NODES, NEXT_STEP_BY_EVENT",
+        "src/devforge/graph/runtime_state.py:9-53 — RuntimeState typed dataclass",
+        "src/devforge/llm/mock.py — MockLLMClient for test isolation"
+      ]
+    }
+  ]
+}

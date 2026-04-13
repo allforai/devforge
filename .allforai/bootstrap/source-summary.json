@@ -1,0 +1,327 @@
+{
+  "project_name": "devforge",
+  "tech_stacks": [
+    "Python 3.12",
+    "LangGraph >=0.2,<1",
+    "httpx >=0.28.1",
+    "setuptools + uv",
+    "pytest 8.x",
+    "SQLite3 (stdlib)"
+  ],
+  "modules": [
+    {
+      "id": "M001",
+      "path": "src/devforge/graph",
+      "role": "backend",
+      "public_interfaces": [
+        "run_cycle",
+        "RuntimeState",
+        "build_meta_graph",
+        "concept_collection_node",
+        "planning_and_shaping_node",
+        "graph_validation_node",
+        "project_scheduler_node",
+        "next_step_for_state",
+        "META_GRAPH_NODES",
+        "NEXT_STEP_BY_EVENT"
+      ],
+      "internal_count": 6,
+      "test_count": 3,
+      "description": "Orchestration kernel: drives one cycle of select→plan→dispatch→verify using LangGraph state machine; run_cycle() is the primary SDK entry point."
+    },
+    {
+      "id": "M002",
+      "path": "src/devforge/executors",
+      "role": "backend",
+      "public_interfaces": [
+        "ExecutorAdapter",
+        "ExecutorDispatch",
+        "SubmissionReceipt",
+        "SubprocessTransport",
+        "get_executor_adapter",
+        "register_executor_adapter",
+        "EXECUTOR_REGISTRY",
+        "EXECUTOR_CAPABILITIES",
+        "ClaudeCodeAdapter",
+        "CodexAdapter",
+        "PythonAdapter",
+        "ClineAdapter",
+        "OpenCodeAdapter",
+        "TopologyClassifierAdapter",
+        "format_executor_payload",
+        "resolve_pull_strategy",
+        "validate_granularity",
+        "build_claude_code_command",
+        "build_codex_command"
+      ],
+      "internal_count": 8,
+      "test_count": 4,
+      "description": "Pluggable executor backend layer: Protocol-based adapter registry, subprocess transport for CLI executors (claude, codex, python), pull-policy resolution, and granularity control."
+    },
+    {
+      "id": "M003",
+      "path": "src/devforge/state",
+      "role": "shared",
+      "public_interfaces": [
+        "WorkPackage",
+        "WorkPackageStatus",
+        "ProjectState",
+        "InitiativeState",
+        "WorkspaceState",
+        "SeamState",
+        "SeamRisk",
+        "ExecutorPolicy",
+        "ExecutorResult",
+        "RequirementEvent",
+        "ProductDesign",
+        "AcceptanceVerdict",
+        "StateNode",
+        "NodeRevision",
+        "decode_snapshot",
+        "encode_snapshot",
+        "decode_work_package",
+        "decode_project",
+        "decode_initiative",
+        "decode_seam"
+      ],
+      "internal_count": 15,
+      "test_count": 3,
+      "description": "Core domain model: immutable dataclasses for all orchestration entities (WorkPackage, ProjectState, InitiativeState, SeamState) plus snapshot codec for JSON serialization."
+    },
+    {
+      "id": "M004",
+      "path": "src/devforge/planning",
+      "role": "backend",
+      "public_interfaces": [
+        "llm_concept_collection_decider",
+        "llm_planning_decider",
+        "llm_retry_decider",
+        "decide_retry_action",
+        "build_retry_guardrail",
+        "resolve_retry_action",
+        "apply_requirement_events",
+        "apply_patch_operations",
+        "apply_project_split",
+        "freeze_seam",
+        "verify_seam",
+        "generate_product_design",
+        "validate_design",
+        "expand_closures",
+        "analyze_gaps",
+        "evaluate_acceptance",
+        "ConceptCollectionDecision",
+        "PlanningDecision",
+        "RetryDecision"
+      ],
+      "internal_count": 10,
+      "test_count": 12,
+      "description": "LLM-backed planning decision chain: concept collection, workset planning, retry routing, requirement patching, product design generation/validation, closure expansion, and acceptance evaluation."
+    },
+    {
+      "id": "M005",
+      "path": "src/devforge/persistence",
+      "role": "backend",
+      "public_interfaces": [
+        "WorkspacePersistence",
+        "build_local_workspace_persistence",
+        "SnapshotStore",
+        "EventStore",
+        "ArtifactStore",
+        "MemoryStore",
+        "SQLiteSnapshotStore",
+        "SQLiteEventStore",
+        "JsonStore",
+        "JsonlEventStore",
+        "JsonMemoryStore",
+        "FileArtifactStore",
+        "sqlite_schema"
+      ],
+      "internal_count": 10,
+      "test_count": 1,
+      "description": "Four-layer durable storage: SQLite snapshot + event store, JSONL event log, JSON memory store, and filesystem artifact store; assembled via WorkspacePersistence + build_local_workspace_persistence()."
+    },
+    {
+      "id": "M006",
+      "path": "src/devforge/llm",
+      "role": "backend",
+      "public_interfaces": [
+        "LLMClient",
+        "LLMProviderConfig",
+        "OpenRouterClient",
+        "GoogleGenAIClient",
+        "MockLLMClient",
+        "HttpxTransport",
+        "HTTPTransport",
+        "StructuredGenerationRequest",
+        "StructuredGenerationResponse",
+        "build_llm_client",
+        "build_llm_client_from_config",
+        "build_task_llm_client",
+        "load_llm_config"
+      ],
+      "internal_count": 10,
+      "test_count": 5,
+      "description": "LLM provider abstraction: Protocol-based LLMClient, concrete adapters for OpenRouter (chat completions) and Google GenAI (Gemini generateContent), httpx transport, config loader from llm.yaml."
+    },
+    {
+      "id": "M007",
+      "path": "src/devforge/tools",
+      "role": "backend",
+      "public_interfaces": [
+        "BraveSearchClient",
+        "SearchResult",
+        "FalImageClient",
+        "FalImageResult",
+        "ImageGenClient",
+        "ImageResult",
+        "StitchClient",
+        "StitchProject",
+        "StitchScreen",
+        "XVValidator",
+        "XVResult"
+      ],
+      "internal_count": 5,
+      "test_count": 2,
+      "description": "External tool integrations: Brave Search (market research), fal.ai image generation (Flux/SDXL), Stitch UI prototyping (Google AI), and XV cross-model validator."
+    },
+    {
+      "id": "M008",
+      "path": "src/devforge/scheduler",
+      "role": "backend",
+      "public_interfaces": [
+        "select_workset"
+      ],
+      "internal_count": 1,
+      "test_count": 1,
+      "description": "Priority-based workset selector: chooses up to N ready WorkPackages respecting seam freeze and dependency ordering."
+    },
+    {
+      "id": "M009",
+      "path": "src/devforge/context",
+      "role": "backend",
+      "public_interfaces": [
+        "ContextBroker",
+        "ContextPullManifest",
+        "ResolvedContext"
+      ],
+      "internal_count": 2,
+      "test_count": 2,
+      "description": "On-demand context pull layer: ContextBroker resolves project://, artifact://, memory:// refs from snapshot + persistence stores for injection into executor payloads."
+    },
+    {
+      "id": "M010",
+      "path": "src/devforge/knowledge",
+      "role": "backend",
+      "public_interfaces": [
+        "KNOWLEDGE_REGISTRY",
+        "KnowledgeDocument",
+        "NodeKnowledgePacket",
+        "select_knowledge_for_context",
+        "build_specialized_knowledge",
+        "get_knowledge_document",
+        "list_knowledge_documents"
+      ],
+      "internal_count": 4,
+      "test_count": 1,
+      "description": "Static domain knowledge packs: registry of domain/phase/role knowledge documents, knowledge selection heuristics, and per-node packet assembly for executor payloads."
+    },
+    {
+      "id": "M011",
+      "path": "src/devforge/roles",
+      "role": "shared",
+      "public_interfaces": [
+        "ROLE_REGISTRY",
+        "RoleSpec",
+        "get_role_spec"
+      ],
+      "internal_count": 2,
+      "test_count": 1,
+      "description": "Role registry: named development roles (product_manager, execution_planner, technical_architect, software_engineer, qa_engineer, integration_owner) with executor phase affinity."
+    },
+    {
+      "id": "M012",
+      "path": "src/devforge/seams",
+      "role": "backend",
+      "public_interfaces": [
+        "verify_seam_compliance"
+      ],
+      "internal_count": 1,
+      "test_count": 1,
+      "description": "Seam compliance verifier: checks cross-domain interface contracts (SeamState) against work package outputs to surface integration risk."
+    },
+    {
+      "id": "M013",
+      "path": "src/devforge/config",
+      "role": "backend",
+      "public_interfaces": [
+        "load_project_config",
+        "apply_project_config",
+        "maybe_apply_fixture_project_config"
+      ],
+      "internal_count": 1,
+      "test_count": 1,
+      "description": "Project config loader: reads devforge.project_config.json and overlays llm_preferences, knowledge_preferences, and pull_policy_overrides onto a snapshot before cycle execution."
+    },
+    {
+      "id": "M014",
+      "path": "src/devforge/topology.py",
+      "role": "backend",
+      "public_interfaces": [
+        "WorkspaceCandidate",
+        "WorkspaceModelingDecision",
+        "classify_workspace_candidates",
+        "default_live_llm_preferences",
+        "dump_decision"
+      ],
+      "internal_count": 1,
+      "test_count": 1,
+      "description": "LLM-driven workspace topology classifier: decides whether discovered repos form one business project or a multi-project workspace, used during devforge init --workspace."
+    },
+    {
+      "id": "M015",
+      "path": "src/devforge/main.py",
+      "role": "backend",
+      "public_interfaces": [
+        "main",
+        "run_fixture_cycle",
+        "run_snapshot_cycle",
+        "initialize_project",
+        "run_executor_doctor",
+        "build_cli_parser"
+      ],
+      "internal_count": 1,
+      "test_count": 1,
+      "description": "CLI entrypoint and public SDK functions: devforge CLI commands (init, snapshot, fixture, doctor), programmatic run_cycle wrappers, and snapshot initialization helpers."
+    }
+  ],
+  "architecture_pattern": "Layered orchestration kernel with LangGraph state machine, Protocol-based executor adapters, and append-only event-sourced persistence",
+  "detected_patterns": [
+    "Protocol / structural subtyping (ExecutorAdapter, LLMClient, SnapshotStore, EventStore)",
+    "Strategy pattern (executor adapter selection, LLM provider routing)",
+    "Factory pattern (build_llm_client, build_local_workspace_persistence, get_executor_adapter)",
+    "Registry pattern (EXECUTOR_REGISTRY, KNOWLEDGE_REGISTRY, ROLE_REGISTRY)",
+    "State machine (LangGraph graph with typed RuntimeState transitions)",
+    "Snapshot + event sourcing (JSON snapshot + JSONL/SQLite event log)",
+    "Adapter pattern (BaseExecutorAdapter wrapping SubprocessTransport)",
+    "Context pull manifest (lazy ref resolution via ContextBroker)",
+    "Workset selector (priority + dependency scheduler)",
+    "Retry policy chain (decide_retry_action → switch_executor / requeue / block / replan)"
+  ],
+  "dependency_graph": {
+    "graph": ["state", "executors", "planning", "scheduler", "knowledge", "persistence", "context", "llm"],
+    "executors": ["state", "context", "llm", "topology"],
+    "planning": ["state", "llm"],
+    "persistence": [],
+    "llm": [],
+    "state": [],
+    "tools": ["llm"],
+    "topology": ["llm"],
+    "context": ["persistence"],
+    "knowledge": [],
+    "roles": [],
+    "seams": ["state"],
+    "config": [],
+    "scheduler": ["state"],
+    "main": ["graph", "executors", "persistence", "config", "topology", "llm"]
+  }
+}

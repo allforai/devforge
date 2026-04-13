@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "project_name": "devforge",
+  "business_domain": "developer-tooling",
+  "business_context": "DevForge is a Python + LangGraph stateful development orchestration kernel that manages multi-project software development work through role-based planning, executor dispatch, requirement patching, and seam governance — it is a development operating kernel, not a chat agent.",
+  "tech_stacks": [
+    {
+      "role": "backend",
+      "language": "python",
+      "language_version": "3.12",
+      "framework": "langgraph >=0.2,<1",
+      "state_management": "dataclass-based RuntimeState + LangGraph state transitions",
+      "router": null,
+      "orm": null,
+      "db": "sqlite (embedded, optional persistence layer)",
+      "build_tool": "uv + setuptools"
+    }
+  ],
+  "goals": ["reverse-concept", "analyze"],
+  "product_vision": null,
+  "target_stacks": [],
+  "ui_fidelity": null,
+  "modules": [
+    {
+      "id": "M001",
+      "path": "src/devforge/state/",
+      "role": "shared",
+      "description": "Pydantic-style dataclass state models: WorkPackage, Project, Initiative, Seam, RequirementEvent, ExecutorPolicy, ExecutorResult, WorkspaceState"
+    },
+    {
+      "id": "M002",
+      "path": "src/devforge/graph/",
+      "role": "backend",
+      "description": "LangGraph meta-graph: builder, nodes, transitions, runtime_state, tool_enhanced_nodes"
+    },
+    {
+      "id": "M003",
+      "path": "src/devforge/executors/",
+      "role": "backend",
+      "description": "Executor adapter layer: base interface, ClaudeCode/Codex/Python adapters, subprocess transport, payload formatting, pull policy"
+    },
+    {
+      "id": "M004",
+      "path": "src/devforge/planning/",
+      "role": "backend",
+      "description": "Planning logic: concept decision, task shaping, gap analyzer, graph patch, retry policy/decision, design generator/validator, closure expander, acceptance"
+    },
+    {
+      "id": "M005",
+      "path": "src/devforge/scheduler/",
+      "role": "backend",
+      "description": "Workset selector: chooses which work packages to dispatch in a given cycle"
+    },
+    {
+      "id": "M006",
+      "path": "src/devforge/knowledge/",
+      "role": "shared",
+      "description": "Local knowledge base: domain/phase markdown content, knowledge registry, selectors, specializer, node knowledge packets"
+    },
+    {
+      "id": "M007",
+      "path": "src/devforge/llm/",
+      "role": "backend",
+      "description": "LLM provider abstraction: OpenRouter, Google, mock, httpx transport, config/factory, router"
+    },
+    {
+      "id": "M008",
+      "path": "src/devforge/persistence/",
+      "role": "backend",
+      "description": "Four-layer persistence: SQLite/JSON snapshot store, JSONL event store, filesystem artifact store, JSON memory store"
+    },
+    {
+      "id": "M009",
+      "path": "src/devforge/tools/",
+      "role": "backend",
+      "description": "External tool integrations: Brave Search, FAL image generation, Stitch UI, XV validator"
+    },
+    {
+      "id": "M010",
+      "path": "src/devforge/context/",
+      "role": "backend",
+      "description": "Context broker: pull policy resolution, context assembly for executor dispatch"
+    },
+    {
+      "id": "M011",
+      "path": "src/devforge/roles/",
+      "role": "shared",
+      "description": "Role system: role specs (product_manager, technical_architect, software_engineer, qa_engineer, etc.) and registry"
+    },
+    {
+      "id": "M012",
+      "path": "src/devforge/seams/",
+      "role": "backend",
+      "description": "Seam governance: seam verifier for cross-project contract verification"
+    },
+    {
+      "id": "M013",
+      "path": "src/devforge/main.py",
+      "role": "backend",
+      "description": "CLI entry point: fixture, snapshot, init, doctor, repl subcommands"
+    },
+    {
+      "id": "M014",
+      "path": "src/devforge/config/",
+      "role": "shared",
+      "description": "Project config: llm_preferences, knowledge_preferences, pull_policy_overrides per project"
+    },
+    {
+      "id": "M015",
+      "path": "src/devforge/topology.py",
+      "role": "backend",
+      "description": "Topology classifier: onboarding workspace candidates and modeling decisions"
+    }
+  ],
+  "build_commands": {
+    "backend": "uv sync --extra dev"
+  },
+  "test_commands": {
+    "backend": "uv run python -m pytest -q"
+  },
+  "detected_patterns": [
+    "LangGraph state machine",
+    "Protocol/adapter pattern (ExecutorAdapter)",
+    "Repository pattern (persistence stores)",
+    "Strategy pattern (executor policy resolution)",
+    "Factory pattern (LLM factory, adapter registry)",
+    "Observer/event pattern (JSONL event store)",
+    "Plugin pattern (executor registry)"
+  ],
+  "architecture_pattern": "Layered orchestration kernel (state → planning → graph → executor)",
+  "complexity_estimate": "high",
+  "requires_runtime_env": false
+}

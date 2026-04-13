@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0",
+  "stages": [
+    {
+      "stage": "discover",
+      "goal": "Understand what DevForge is, what problem it solves, and whether it's worth 30 more minutes of evaluation time.",
+      "devforge_touchpoints": [
+        "README.md — project mission, Quick Start, feature bullet list",
+        "PLAN.md — architecture rationale and design principles (contributor-oriented)",
+        "PyPI package metadata (description, classifiers)"
+      ],
+      "friction_points": [
+        "README.md is written entirely in Chinese — English-speaking developers cannot read the primary discovery document",
+        "No one-sentence English tagline on the repository or in pyproject.toml description that distinguishes DevForge from generic LangGraph frameworks",
+        "PLAN.md is contributor-oriented (explains phase deliverables) but not discoverer-oriented (doesn't explain the 'what and why' for a first-time reader)",
+        "No 'why not just use LangGraph directly?' explanation on the landing page"
+      ],
+      "smooth_points": [
+        "README.md Quick Start section exists with concrete CLI commands",
+        "Feature bullet list in README is concrete (lists orchestration capabilities)",
+        "Repository structure is clean and follows standard Python package layout"
+      ],
+      "evidence": [
+        "README.md:1-15 — Chinese-only header and mission",
+        "pyproject.toml — package metadata",
+        "PLAN.md:1-50 — architectural rationale"
+      ]
+    },
+    {
+      "stage": "evaluate",
+      "goal": "Verify that DevForge can run locally in under 5 minutes and produces observable output that matches the stated value proposition.",
+      "devforge_touchpoints": [
+        "devforge fixture game_project — runs a complete cycle against a built-in fixture without any project setup",
+        "devforge fixture ecommerce_project --json — returns machine-readable cycle result",
+        "devforge doctor — checks executor availability immediately after install",
+        "uv sync --extra dev — single dependency install command"
+      ],
+      "friction_points": [
+        "devforge doctor requires codex or claude CLI to be installed and logged in — first-time evaluation in a clean environment shows all executors as 'missing' or 'blocked', which reads as failure even though stub mode works",
+        "fixture output is dense JSON with no human-readable summary mode by default — first-time users don't know what to look for",
+        "No README section explaining what 'stub transport submitted' in fixture output means (expected behavior, not an error)"
+      ],
+      "smooth_points": [
+        "run_fixture_cycle works entirely offline with stub transport — zero network requirements for evaluation",
+        "fixture command output includes cycle_id, selected_work_packages, dispatches — sufficient to validate the core dispatch loop",
+        "Two fixture archetypes available (game, ecommerce) covering different project types",
+        "test_graph_runner.py::test_run_cycle_selects_and_dispatches_fixture_work shows exactly what output to expect"
+      ],
+      "evidence": [
+        "src/devforge/main.py:41-47 — run_fixture_cycle auto-applies project_config",
+        "tests/test_graph_runner.py:28-78 — expected fixture output shape",
+        "src/devforge/main.py:84-153 — run_executor_doctor implementation with actionable messages",
+        "docs/cli.md:36-45 — fixture command documentation"
+      ]
+    },
+    {
+      "stage": "integrate",
+      "goal": "Bootstrap DevForge into a real project and understand how to configure the snapshot and project preferences.",
+      "devforge_touchpoints": [
+        "devforge init — writes .devforge/devforge.snapshot.json and .devforge/devforge.project_config.json",
+        "devforge init --workspace — detects multi-project structure, runs topology classifier",
+        "devforge init --guided — forces wizard-mode preferences even in non-interactive terminal",
+        "Wizard presets: LLM_SETUP_PRESETS (auto/offline/live), KNOWLEDGE_SETUP_PRESETS (balanced/implementation/testing), PULL_SETUP_PRESETS (standard/lean/rich)"
+      ],
+      "friction_points": [
+        "After init, the generated snapshot JSON has no comments or embedded documentation — users don't know which fields are safe to edit manually",
+        "devforge init --workspace requires a running LLM (topology classifier) — fails without API keys even when the project structure is obvious",
+        "No documentation explaining the snapshot JSON schema — users can't craft a snapshot from scratch without reading state/ source code",
+        "The snapshot file name (devforge.snapshot.json) is hardcoded but can be changed — no documentation on when/why to use a different name"
+      ],
+      "smooth_points": [
+        "Wizard presets abstract llm_preferences/knowledge_preferences/pull_policy_overrides into three human-readable choices",
+        "init writes both snapshot and project_config in one step — no manual file creation needed",
+        "WORKSPACE_PROJECT_MARKERS covers all major build systems (pyproject.toml, package.json, go.mod, Cargo.toml, etc.)",
+        "maybe_apply_fixture_project_config auto-discovers sibling config files — zero-config for fixture runs"
+      ],
+      "evidence": [
+        "src/devforge/main.py:36-39 — LLM_SETUP_PRESETS, KNOWLEDGE_SETUP_PRESETS, PULL_SETUP_PRESETS",
+        "src/devforge/main.py:22-35 — WORKSPACE_PROJECT_MARKERS",
+        "src/devforge/topology.py — classify_workspace_candidates LLM call",
+        "tests/test_main_cli.py — init subcommand integration tests"
+      ]
+    },
+    {
+      "stage": "use",
+      "goal": "Run reliable development cycles against a real project, resume interrupted cycles, and tune executor routing behavior.",
+      "devforge_touchpoints": [
+        "devforge snapshot .devforge/devforge.snapshot.json — execute a cycle against own project",
+        "devforge snapshot ... --persistence-root .devforge — enable durable cycle resume",
+        "devforge snapshot ... --project-config ... — apply per-project LLM/knowledge overrides",
+        "devforge repl — interactive session for conversational cycle continuation",
+        "run_snapshot_cycle() Python API for CI/scripting integration"
+      ],
+      "friction_points": [
+        "No documentation on how cycle resume works — users don't know that --persistence-root enables SQLite snapshot + event log",
+        "The snapshot JSON must be manually updated after each cycle (updated snapshot in result['snapshot']) — no automated write-back is documented",
+        "Work package status transitions (9 statuses) are not documented for users — when a cycle ends with some WPs in 'blocked' status, users don't know the expected next action",
+        "No built-in cycle visualization or summary beyond raw JSON output"
+      ],
+      "smooth_points": [
+        "run_snapshot_cycle signature is clean — one path param, optional persistence and config kwargs",
+        "Cycle result always includes updated snapshot dict — callers can write it back atomically",
+        "devforge repl provides conversational continuation for iterative cycles",
+        "project_config llm_preferences support per-task model routing (concept_model, planning_model, retry_model) — granular without being complex"
+      ],
+      "evidence": [
+        "src/devforge/main.py:50-62 — run_snapshot_cycle implementation",
+        "docs/cli.md:47-80 — snapshot command docs (persistence-root section)",
+        "src/devforge/repl.py — run_interactive_session",
+        "src/devforge/graph/builder.py — run_cycle result structure"
+      ]
+    },
+    {
+      "stage": "extend",
+      "goal": "Add a custom executor adapter, define custom knowledge packs, or tune context pull budgets — without modifying orchestration graph code.",
+      "devforge_touchpoints": [
+        "ExecutorAdapter Protocol in executors/base.py — implement 11-method contract",
+        "BaseExecutorAdapter in executors/adapters.py — inherit and override CLI argv builder",
+        "register_executor_adapter() — register custom adapter at runtime",
+        "pull_policy_overrides in project_config.json — tune per-role context budgets",
+        "knowledge/ module — add custom KnowledgeDocument to KNOWLEDGE_REGISTRY",
+        "EXECUTOR_CAPABILITIES — register capability metadata separately from logic"
+      ],
+      "friction_points": [
+        "No 'Build Your First Executor Adapter' how-to guide — the Protocol definition alone is insufficient documentation",
+        "submit vs submit_request vs dispatch naming is ambiguous — no documented explanation of when to implement which method vs defer to base class",
+        "Custom knowledge packs require direct modification of KNOWLEDGE_REGISTRY — no plugin/config-based knowledge registration path",
+        "SubprocessTransport._run_subprocess_request internals are not documented — custom adapters needing custom transport logic must reverse-engineer the source",
+        "No test recipe for custom adapters — how to use MockLLMClient + fixture patterns for adapter unit testing is undocumented"
+      ],
+      "smooth_points": [
+        "BaseExecutorAdapter handles ~8 of 11 Protocol methods as stubs/defaults — minimum viable custom adapter is ~30 lines",
+        "SubprocessTransport submit/poll/cancel lifecycle is reusable for any subprocess-based tool",
+        "pull_policy_overrides is pure config — no code changes needed to tune context budgets",
+        "EXECUTOR_CAPABILITIES is separate from adapter logic — can define capability metadata without touching adapter code"
+      ],
+      "evidence": [
+        "src/devforge/executors/base.py:62-109 — ExecutorAdapter Protocol",
+        "src/devforge/executors/adapters.py:26-100 — BaseExecutorAdapter",
+        "src/devforge/executors/pull_policy.py — PullPolicyRule, resolve_pull_strategy",
+        "src/devforge/executors/capabilities.py — EXECUTOR_CAPABILITIES",
+        "src/devforge/knowledge/registry.py — KNOWLEDGE_REGISTRY"
+      ]
+    },
+    {
+      "stage": "contribute",
+      "goal": "Add new meta-graph nodes, extend RuntimeState, or add planning decision chains while keeping the test suite green and consistent with the orchestration contract.",
+      "devforge_touchpoints": [
+        "src/devforge/graph/nodes.py — node function signatures and RuntimeState mutation contract",
+        "src/devforge/graph/runtime_state.py — RuntimeState typed dataclass (add new fields here)",
+        "src/devforge/graph/langgraph_builder.py — StateGraph wiring (add conditional edges)",
+        "src/devforge/graph/skeleton.py — META_GRAPH_NODES, NEXT_STEP_BY_EVENT registry",
+        "src/devforge/planning/ — decider function pattern (llm_*_decider)",
+        "src/devforge/llm/mock.py + fixture JSONs — test isolation without live LLM",
+        "256-test regression suite as contribution baseline"
+      ],
+      "friction_points": [
+        "No CONTRIBUTING.md or contributor guide — newcomers have no documented workflow",
+        "LangGraph StateGraph wiring in langgraph_builder.py is complex — no architectural explanation of why the meta-graph was designed as a directed graph vs a simple loop",
+        "PLAN.md is the closest thing to a contributor architecture guide but its phase deliverables are outdated (C002, C003)",
+        "next_step_for_state() transition logic in transitions.py is not documented — contributors must read code to understand node ordering rules",
+        "No documented convention for naming new nodes, new RuntimeState fields, or new planning deciders"
+      ],
+      "smooth_points": [
+        "RuntimeState is a typed dataclass — adding new fields is one line and immediately visible to IDE",
+        "MockLLMClient returns deterministic structured responses — full cycle tests run offline with predictable assertions",
+        "Planning module has consistent decider pattern (StructuredGenerationRequest/Response) — new deciders follow clear shape",
+        "256 tests serve as explicit regression baseline — contributors know immediately when they break existing behavior",
+        "Pure node functions (no class state) are composable without side effects"
+      ],
+      "evidence": [
+        "src/devforge/graph/runtime_state.py:9-53 — RuntimeState typed fields",
+        "src/devforge/graph/nodes.py — node function signatures",
+        "src/devforge/graph/langgraph_builder.py — StateGraph edges",
+        "src/devforge/graph/skeleton.py — META_GRAPH_NODES",
+        "src/devforge/graph/transitions.py — next_step_for_state",
+        "tests/test_graph_runner.py — regression tests with fixture + mock"
+      ]
+    }
+  ]
+}

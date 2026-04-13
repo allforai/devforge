@@ -1,0 +1,21 @@
+{
+  "focus": [
+    "general",
+    "analysis_design",
+    "core",
+    "technical_architect"
+  ],
+  "knowledge_ids": [
+    "phase.analysis_design"
+  ],
+  "titles": [
+    "Analysis and Design"
+  ],
+  "tags": [
+    "contracts",
+    "design",
+    "domain_model",
+    "task_shaping"
+  ],
+  "summary": "Work-package shaping, domain analysis, contract design, and architecture translation guidance."
+}

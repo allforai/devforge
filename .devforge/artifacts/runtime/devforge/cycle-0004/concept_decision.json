@@ -1,0 +1,25 @@
+{
+  "phase": "acceptance",
+  "goal": "collect concept model for devforge",
+  "focus_areas": [
+    "general",
+    "acceptance",
+    "core",
+    "integration_owner"
+  ],
+  "questions": [
+    "What is the primary user experience or outcome?",
+    "Which domains are core versus optional in the first iteration?"
+  ],
+  "required_artifacts": [
+    "concept_brief.md",
+    "acceptance_goals.json"
+  ],
+  "rationale": "collect concept inputs before detailed planning and execution",
+  "source": "mock:mock-structured-v1",
+  "confidence": 0.76,
+  "notes": [
+    "concept decision derived from project archetype and selected knowledge",
+    "focus areas limited for layered disclosure"
+  ]
+}

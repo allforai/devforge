@@ -1,0 +1,99 @@
+{
+  "id": "wf-Fix-four-issues-in-devforge-source-files-20260412064816",
+  "goal": "Fix four issues in devforge source files:\n\nFIX 1 — src/devforge/workflow/engine.py:\nAdd 'import os' after 'import copy' at the top.\nChange '_EXECUTOR_TIMEOUT = 300' to:\n_EXECUTOR_TIMEOUT = int(os.environ.get(\"DEVFORGE_EXECUTOR_TIMEOUT\", \"600\"))\n\nFIX 2 — src/devforge/workflow/engine.py:\nIn run_one_cycle(), after the 'candidates = select_next_nodes(manifest)' line,\nthe 'if not candidates' branch returns 'blocked'. Add this logic BEFORE returning blocked:\nIf 'running' list is empty AND there are nodes with status==\"failed\" AND attempt_count >= MAX_ATTEMPTS,\nthen: set manifest[\"workflow_status\"] = \"failed\", call write_manifest(root, wf_id, manifest),\ncall _sync_index_status(root, wf_id, \"failed\"), call _write_status_json(root, wf_id, manifest, []),\nand return {\"status\": \"workflow_failed\", \"dispatched\": [], \"blocked_by\": [list of exhausted node ids]}.\n\nFIX 3 — src/devforge/main.py:\nIn _run_wf_command(), the 'reset' branch resets node status to pending but does not fix workflow_status.\nAfter write_manifest for the node reset, also:\n  - if manifest[\"workflow_status\"] == \"failed\": set it to \"running\", write_manifest again,\n    and call _sync_index_status(root, wf_id, \"active\") imported from devforge.workflow.store.\nPrint the existing success message.\n\nFIX 4 — src/devforge/repl.py:\nIn _render_workflow(), the header line uses manifest['goal'] directly.\nChange to: goal_display = manifest['goal'][:80] + \"…\" if len(manifest['goal']) > 80 else manifest['goal']\nUse goal_display in the f-string instead.\n\nAfter all fixes, run: cd /Users/aa/workspace/devforge && uv run pytest tests/test_workflow_engine.py tests/test_main_cli.py -q\nAll tests must pass.\nWorking directory: /Users/aa/workspace/devforge",
+  "created_at": "2026-04-12T06:48:16.967005+00:00",
+  "workflow_status": "failed",
+  "nodes": [
+    {
+      "id": "planner",
+      "status": "completed",
+      "depends_on": [],
+      "exit_artifacts": [],
+      "executor": "claude_code",
+      "mode": "planning",
+      "parent_node_id": null,
+      "depth": 0,
+      "attempt_count": 1,
+      "last_started_at": "2026-04-12T06:48:22.474160+00:00",
+      "last_completed_at": "2026-04-12T06:49:57.652405+00:00",
+      "last_error": null
+    },
+    {
+      "id": "fix-engine-import-timeout",
+      "status": "failed",
+      "depends_on": [],
+      "exit_artifacts": [],
+      "executor": "codex",
+      "mode": null,
+      "parent_node_id": null,
+      "depth": 1,
+      "attempt_count": 3,
+      "last_started_at": "2026-04-12T07:20:17.353253+00:00",
+      "last_completed_at": "2026-04-12T07:25:17.360797+00:00",
+      "last_error": "executor timeout after 300s"
+    },
+    {
+      "id": "fix-engine-workflow-failed",
+      "status": "pending",
+      "depends_on": [
+        "fix-engine-import-timeout"
+      ],
+      "exit_artifacts": [],
+      "executor": "codex",
+      "mode": null,
+      "parent_node_id": null,
+      "depth": 1,
+      "attempt_count": 0,
+      "last_started_at": null,
+      "last_completed_at": null,
+      "last_error": null
+    },
+    {
+      "id": "fix-main-reset-workflow-status",
+      "status": "failed",
+      "depends_on": [],
+      "exit_artifacts": [],
+      "executor": "codex",
+      "mode": null,
+      "parent_node_id": null,
+      "depth": 1,
+      "attempt_count": 2,
+      "last_started_at": "2026-04-12T07:10:16.893543+00:00",
+      "last_completed_at": "2026-04-12T07:15:16.905522+00:00",
+      "last_error": "executor timeout after 300s"
+    },
+    {
+      "id": "fix-repl-goal-truncation",
+      "status": "failed",
+      "depends_on": [],
+      "exit_artifacts": [],
+      "executor": "codex",
+      "mode": null,
+      "parent_node_id": null,
+      "depth": 1,
+      "attempt_count": 2,
+      "last_started_at": "2026-04-12T07:15:16.907085+00:00",
+      "last_completed_at": "2026-04-12T07:20:16.894776+00:00",
+      "last_error": "executor timeout after 300s"
+    },
+    {
+      "id": "run-tests",
+      "status": "pending",
+      "depends_on": [
+        "fix-engine-import-timeout",
+        "fix-engine-workflow-failed",
+        "fix-main-reset-workflow-status",
+        "fix-repl-goal-truncation"
+      ],
+      "exit_artifacts": [],
+      "executor": "codex",
+      "mode": null,
+      "parent_node_id": null,
+      "depth": 1,
+      "attempt_count": 0,
+      "last_started_at": null,
+      "last_completed_at": null,
+      "last_error": null
+    }
+  ]
+}

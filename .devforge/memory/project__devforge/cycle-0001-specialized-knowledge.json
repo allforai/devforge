@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0001-specialized-knowledge",
+  "content": "{\n  \"focus\": [\n    \"general\",\n    \"analysis_design\",\n    \"core\",\n    \"technical_architect\"\n  ],\n  \"knowledge_ids\": [\n    \"phase.analysis_design\"\n  ],\n  \"titles\": [\n    \"Analysis and Design\"\n  ],\n  \"tags\": [\n    \"contracts\",\n    \"design\",\n    \"domain_model\",\n    \"task_shaping\"\n  ],\n  \"summary\": \"Work-package shaping, domain analysis, contract design, and architecture translation guidance.\"\n}",
+  "metadata": {
+    "kind": "specialized_knowledge",
+    "cycle_id": "cycle-0001"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "focus": [
+    "general",
+    "acceptance",
+    "core",
+    "integration_owner"
+  ],
+  "knowledge_ids": [
+    "phase.testing"
+  ],
+  "titles": [
+    "Testing and Verification"
+  ],
+  "tags": [
+    "acceptance",
+    "qa",
+    "regression",
+    "testing",
+    "verification"
+  ],
+  "summary": "Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+}

@@ -1,0 +1,70 @@
+{
+  "wf_id": "wf-Migrate-the-devforge-workflow-engine-to--20260412074803",
+  "goal": "Migrate the devforge workflow engine to use LangGraph. Working directory: /Users/aa/workspace/devforge\n\nRead the design spec first: /Users/aa/workspace/devforge/docs/superpowers/specs/2026-04-12-workflow-langgraph-migration.md\n\nSummary of what to build:\nCreate src/devforge/workflow/graph.py — a LangGraph StateGraph that replaces the hand-written imperative logic in run_one_cycle() inside engine.py. The public interface must stay identical: run_one_cycle(root: Path) -> dict[str, Any].\n\nRequired nodes in the graph:\n1. load_manifest — read manifest from file into state\n2. reconcile — check exit_artifacts on disk, auto-complete nodes whose files exist\n3. select_nodes — run select_next_nodes(), put results in state.candidates\n4. dispatch_nodes — for each candidate: read node def, call _dispatch_node(), write run log, update manifest entry status\n5. persist — write_manifest + _write_status_json\n6. finalize_complete — set workflow_status=complete, sync index, return all_complete\n7. finalize_awaiting — return awaiting_confirm\n8. finalize_failed — set workflow_status=failed, sync index, return workflow_failed\n9. finalize_blocked — return blocked\n\nRouting:\n- After reconcile: if all completed → finalize_complete; if awaiting_confirm → finalize_awaiting; else → select_nodes\n- After select_nodes: if candidates empty → check exhausted nodes (failed + attempts>=MAX_ATTEMPTS) → finalize_failed; else if just blocked → finalize_blocked; else → dispatch_nodes\n- After dispatch_nodes: → persist\n- After persist: → END\n- All finalize_* nodes → END\n\nState TypedDict (WorkflowState):\n  root: str, wf_id: str, manifest: dict, candidates: list,\n  dispatched: list[str], cycle_result: str, blocked_by: list[str],\n  pending: list[str], running: list[str]\n\nIn engine.py: replace the body of run_one_cycle() to use the new graph:\n  from devforge.workflow.graph import run_workflow_cycle\n  return run_workflow_cycle(root, wf_id, manifest)\n\nKeep ALL helper functions in engine.py unchanged (_dispatch_node, _write_run_log, _write_status_json, _load_knowledge, select_next_nodes, reconcile_artifacts, etc.) — graph.py imports them from engine.py.\n\nAfter implementation run: cd /Users/aa/workspace/devforge && uv run pytest tests/test_workflow_engine.py -q\nAll existing tests must pass. The graph must produce identical outputs to the current run_one_cycle().",
+  "workflow_status": "failed",
+  "progress": {
+    "completed": 1,
+    "failed": 1,
+    "running": 0,
+    "pending": 2,
+    "total": 4
+  },
+  "active_nodes": [],
+  "last_cycle_at": "2026-04-12T08:20:45.687654+00:00",
+  "last_cycle_dispatched": [
+    "create-graph-module"
+  ],
+  "nodes": [
+    {
+      "id": "planner",
+      "status": "completed",
+      "executor": "claude_code",
+      "attempt": 1,
+      "depends_on": [],
+      "exit_artifacts": [],
+      "started_at": "2026-04-12T07:48:09.869092+00:00",
+      "completed_at": "2026-04-12T07:50:07.176566+00:00",
+      "error": null
+    },
+    {
+      "id": "create-graph-module",
+      "status": "failed",
+      "executor": "codex",
+      "attempt": 3,
+      "depends_on": [],
+      "exit_artifacts": [
+        "src/devforge/workflow/graph.py"
+      ],
+      "started_at": "2026-04-12T08:10:45.671590+00:00",
+      "completed_at": "2026-04-12T08:20:45.682689+00:00",
+      "error": "executor timeout after 600s"
+    },
+    {
+      "id": "update-engine-delegation",
+      "status": "pending",
+      "executor": "codex",
+      "attempt": 0,
+      "depends_on": [
+        "create-graph-module"
+      ],
+      "exit_artifacts": [],
+      "started_at": null,
+      "completed_at": null,
+      "error": null
+    },
+    {
+      "id": "verify-tests-pass",
+      "status": "pending",
+      "executor": "codex",
+      "attempt": 0,
+      "depends_on": [
+        "create-graph-module",
+        "update-engine-delegation"
+      ],
+      "exit_artifacts": [],
+      "started_at": null,
+      "completed_at": null,
+      "error": null
+    }
+  ]
+}

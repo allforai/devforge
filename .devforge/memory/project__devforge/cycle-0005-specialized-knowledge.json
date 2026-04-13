@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0005-specialized-knowledge",
+  "content": "{\n  \"focus\": [\n    \"general\",\n    \"acceptance\"\n  ],\n  \"knowledge_ids\": [],\n  \"titles\": [],\n  \"tags\": [],\n  \"summary\": \"\"\n}",
+  "metadata": {
+    "kind": "specialized_knowledge",
+    "cycle_id": "cycle-0005"
+  }
+}

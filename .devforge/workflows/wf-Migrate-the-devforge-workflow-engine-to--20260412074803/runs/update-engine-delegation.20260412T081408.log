@@ -1,0 +1,6 @@
+node:       update-engine-delegation
+executor:   codex
+started_at: 2026-04-12T08:14:08.516433+00:00
+exit_code:  0
+---
+`src/devforge/workflow/engine.py` already has the requested `run_one_cycle(root: Path) -> dict[str, Any]` delegation body, and `git diff` shows no additional changes were needed. No other functions or imports were modified.

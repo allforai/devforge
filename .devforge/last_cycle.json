@@ -1,0 +1,882 @@
+{
+  "runtime": {
+    "workspace_id": "i1",
+    "cycle_id": "cycle-0001",
+    "initiative_id": "i1",
+    "active_project_id": "p1",
+    "current_phase": "implementation",
+    "phase_goal": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+    "foreground_project": "p1",
+    "background_projects": [],
+    "ready_queue": [],
+    "running_queue": [],
+    "blocked_queue": [],
+    "pending_requirement_events": [],
+    "pending_seam_checks": [],
+    "current_workset": [
+      "wp-1"
+    ],
+    "selected_knowledge": [
+      "domain.ecommerce",
+      "phase.implementation",
+      "phase.testing"
+    ],
+    "project_llm_preferences": {},
+    "project_knowledge_preferences": {},
+    "specialized_knowledge": {
+      "focus": [
+        "ecommerce",
+        "implementation",
+        "frontend",
+        "software_engineer"
+      ],
+      "knowledge_ids": [
+        "domain.ecommerce",
+        "phase.implementation",
+        "phase.testing"
+      ],
+      "titles": [
+        "E-Commerce Domain",
+        "Implementation",
+        "Testing and Verification"
+      ],
+      "tags": [
+        "acceptance",
+        "cart",
+        "catalog",
+        "checkout",
+        "compile_verify",
+        "ecommerce",
+        "implementation",
+        "incremental_delivery",
+        "order",
+        "payment",
+        "qa",
+        "regression",
+        "testing",
+        "translation",
+        "verification"
+      ],
+      "summary": "Commerce flow, core entities, consistency rules, and checkout/order constraints. | Implementation strategy selection, bounded execution, and compile-verify discipline. | Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+    },
+    "node_knowledge_packet": {
+      "brief": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+      "focus": {
+        "phase": "implementation",
+        "role_id": "software_engineer",
+        "domain": "frontend",
+        "specialized_knowledge": {
+          "focus": [
+            "ecommerce",
+            "implementation",
+            "frontend",
+            "software_engineer"
+          ],
+          "knowledge_ids": [
+            "domain.ecommerce",
+            "phase.implementation",
+            "phase.testing"
+          ],
+          "titles": [
+            "E-Commerce Domain",
+            "Implementation",
+            "Testing and Verification"
+          ],
+          "tags": [
+            "acceptance",
+            "cart",
+            "catalog",
+            "checkout",
+            "compile_verify",
+            "ecommerce",
+            "implementation",
+            "incremental_delivery",
+            "order",
+            "payment",
+            "qa",
+            "regression",
+            "testing",
+            "translation",
+            "verification"
+          ],
+          "summary": "Commerce flow, core entities, consistency rules, and checkout/order constraints. | Implementation strategy selection, bounded execution, and compile-verify discipline. | Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+        }
+      },
+      "constraints": [],
+      "acceptance": [],
+      "deep_refs": [
+        "domain.ecommerce",
+        "phase.implementation",
+        "phase.testing"
+      ]
+    },
+    "concept_decision": {
+      "phase": "implementation",
+      "goal": "collect concept model for demo",
+      "focus_areas": [
+        "ecommerce",
+        "implementation",
+        "frontend",
+        "software_engineer"
+      ],
+      "questions": [
+        "What is the primary user experience or outcome?",
+        "Which domains are core versus optional in the first iteration?"
+      ],
+      "required_artifacts": [
+        "concept_brief.md",
+        "acceptance_goals.json"
+      ],
+      "rationale": "collect concept inputs before detailed planning and execution",
+      "source": "mock:mock-structured-v1",
+      "confidence": 0.76,
+      "notes": [
+        "concept decision derived from project archetype and selected knowledge",
+        "focus areas limited for layered disclosure"
+      ]
+    },
+    "planning_decision": {
+      "selected_workset": [
+        "wp-1"
+      ],
+      "phase": "implementation",
+      "goal": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+      "rationale": "selected current runnable workset using project and knowledge context",
+      "source": "mock:mock-structured-v1",
+      "confidence": 0.74,
+      "notes": [
+        "planning decision derived from project archetype and selected knowledge",
+        "specialized focus: ecommerce, implementation, frontend"
+      ]
+    },
+    "recent_executor_results": [
+      "codex:wp-1"
+    ],
+    "snapshot": null,
+    "replan_reason": null,
+    "product_design": null,
+    "design_valid": null,
+    "design_validation_issues": [],
+    "closure_expansion": null,
+    "needs_user_input": false,
+    "termination_signal": null,
+    "acceptance_verdict": null
+  },
+  "selected_work_packages": [
+    "wp-1"
+  ],
+  "dispatches": [
+    {
+      "execution_id": "codex:wp-1",
+      "executor": "codex",
+      "work_package_id": "wp-1",
+      "accepted": true,
+      "message": "codex request accepted",
+      "metadata": {
+        "accepted": true,
+        "executor_payload": {
+          "style": "execution_heavy",
+          "task": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+          "rules": [],
+          "checks": [],
+          "knowledge_refs": [
+            "domain.ecommerce",
+            "phase.implementation",
+            "phase.testing"
+          ],
+          "focus_summary": {
+            "phase": "implementation",
+            "role_id": "software_engineer",
+            "domain": "frontend",
+            "specialized_knowledge": {
+              "focus": [
+                "ecommerce",
+                "implementation",
+                "frontend",
+                "software_engineer"
+              ],
+              "knowledge_ids": [
+                "domain.ecommerce",
+                "phase.implementation",
+                "phase.testing"
+              ],
+              "titles": [
+                "E-Commerce Domain",
+                "Implementation",
+                "Testing and Verification"
+              ],
+              "tags": [
+                "acceptance",
+                "cart",
+                "catalog",
+                "checkout",
+                "compile_verify",
+                "ecommerce",
+                "implementation",
+                "incremental_delivery",
+                "order",
+                "payment",
+                "qa",
+                "regression",
+                "testing",
+                "translation",
+                "verification"
+              ],
+              "summary": "Commerce flow, core entities, consistency rules, and checkout/order constraints. | Implementation strategy selection, bounded execution, and compile-verify discipline. | Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+            }
+          },
+          "pull_manifest": {
+            "refs": [
+              "domain.ecommerce",
+              "phase.implementation",
+              "phase.testing",
+              "project://p1",
+              "artifact://runtime/p1/concept_brief.md",
+              "artifact://runtime/p1/acceptance_goals.json",
+              "memory://project/p1/latest-specialized-knowledge",
+              "memory://project/p1/latest-concept-decision"
+            ],
+            "preview": [
+              {
+                "ref": "domain.ecommerce",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "E-Commerce Domain",
+                "content": "Commerce flow, core entities, consistency rules, and checkout/order constraints."
+              },
+              {
+                "ref": "phase.implementation",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "Implementation",
+                "content": "Implementation strategy selection, bounded execution, and compile-verify discipline."
+              },
+              {
+                "ref": "phase.testing",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "Testing and Verification",
+                "content": "Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+              },
+              {
+                "ref": "project://p1",
+                "kind": "project",
+                "mode": "summary",
+                "title": "demo",
+                "content": "demo [ecommerce] phase=implementation domains=frontend"
+              },
+              {
+                "ref": "artifact://runtime/p1/concept_brief.md",
+                "kind": "artifact",
+                "mode": "summary",
+                "title": "runtime/p1/concept_brief.md"
+              },
+              {
+                "ref": "artifact://runtime/p1/acceptance_goals.json",
+                "kind": "artifact",
+                "mode": "summary",
+                "title": "runtime/p1/acceptance_goals.json"
+              },
+              {
+                "ref": "memory://project/p1/latest-specialized-knowledge",
+                "kind": "memory",
+                "mode": "summary",
+                "title": "project/p1/latest-specialized-knowledge"
+              },
+              {
+                "ref": "memory://project/p1/latest-concept-decision",
+                "kind": "memory",
+                "mode": "summary",
+                "title": "project/p1/latest-concept-decision"
+              }
+            ]
+          },
+          "result_contract": {
+            "format": "json",
+            "required_keys": [
+              "summary"
+            ],
+            "optional_keys": [
+              "artifacts_created",
+              "artifacts_modified",
+              "tests_run",
+              "findings",
+              "handoff_notes",
+              "raw_output_ref"
+            ],
+            "finding_shape": {
+              "id": "string",
+              "summary": "string",
+              "severity": "string",
+              "source": "string",
+              "details": "string?",
+              "related_artifacts": [
+                "string"
+              ]
+            }
+          }
+        },
+        "executor_request": {
+          "executor": "codex",
+          "mode": "task_payload",
+          "task_type": "implementation_or_qa",
+          "work_package_id": "wp-1",
+          "goal": "demo",
+          "cycle_id": "cycle-0001",
+          "deliverables": [],
+          "payload": {
+            "style": "execution_heavy",
+            "task": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+            "rules": [],
+            "checks": [],
+            "knowledge_refs": [
+              "domain.ecommerce",
+              "phase.implementation",
+              "phase.testing"
+            ],
+            "focus_summary": {
+              "phase": "implementation",
+              "role_id": "software_engineer",
+              "domain": "frontend",
+              "specialized_knowledge": {
+                "focus": [
+                  "ecommerce",
+                  "implementation",
+                  "frontend",
+                  "software_engineer"
+                ],
+                "knowledge_ids": [
+                  "domain.ecommerce",
+                  "phase.implementation",
+                  "phase.testing"
+                ],
+                "titles": [
+                  "E-Commerce Domain",
+                  "Implementation",
+                  "Testing and Verification"
+                ],
+                "tags": [
+                  "acceptance",
+                  "cart",
+                  "catalog",
+                  "checkout",
+                  "compile_verify",
+                  "ecommerce",
+                  "implementation",
+                  "incremental_delivery",
+                  "order",
+                  "payment",
+                  "qa",
+                  "regression",
+                  "testing",
+                  "translation",
+                  "verification"
+                ],
+                "summary": "Commerce flow, core entities, consistency rules, and checkout/order constraints. | Implementation strategy selection, bounded execution, and compile-verify discipline. | Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+              }
+            },
+            "pull_manifest": {
+              "refs": [
+                "domain.ecommerce",
+                "phase.implementation",
+                "phase.testing",
+                "project://p1",
+                "artifact://runtime/p1/concept_brief.md",
+                "artifact://runtime/p1/acceptance_goals.json",
+                "memory://project/p1/latest-specialized-knowledge",
+                "memory://project/p1/latest-concept-decision"
+              ],
+              "preview": [
+                {
+                  "ref": "domain.ecommerce",
+                  "kind": "knowledge",
+                  "mode": "summary",
+                  "title": "E-Commerce Domain",
+                  "content": "Commerce flow, core entities, consistency rules, and checkout/order constraints."
+                },
+                {
+                  "ref": "phase.implementation",
+                  "kind": "knowledge",
+                  "mode": "summary",
+                  "title": "Implementation",
+                  "content": "Implementation strategy selection, bounded execution, and compile-verify discipline."
+                },
+                {
+                  "ref": "phase.testing",
+                  "kind": "knowledge",
+                  "mode": "summary",
+                  "title": "Testing and Verification",
+                  "content": "Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+                },
+                {
+                  "ref": "project://p1",
+                  "kind": "project",
+                  "mode": "summary",
+                  "title": "demo",
+                  "content": "demo [ecommerce] phase=implementation domains=frontend"
+                },
+                {
+                  "ref": "artifact://runtime/p1/concept_brief.md",
+                  "kind": "artifact",
+                  "mode": "summary",
+                  "title": "runtime/p1/concept_brief.md"
+                },
+                {
+                  "ref": "artifact://runtime/p1/acceptance_goals.json",
+                  "kind": "artifact",
+                  "mode": "summary",
+                  "title": "runtime/p1/acceptance_goals.json"
+                },
+                {
+                  "ref": "memory://project/p1/latest-specialized-knowledge",
+                  "kind": "memory",
+                  "mode": "summary",
+                  "title": "project/p1/latest-specialized-knowledge"
+                },
+                {
+                  "ref": "memory://project/p1/latest-concept-decision",
+                  "kind": "memory",
+                  "mode": "summary",
+                  "title": "project/p1/latest-concept-decision"
+                }
+              ]
+            },
+            "result_contract": {
+              "format": "json",
+              "required_keys": [
+                "summary"
+              ],
+              "optional_keys": [
+                "artifacts_created",
+                "artifacts_modified",
+                "tests_run",
+                "findings",
+                "handoff_notes",
+                "raw_output_ref"
+              ],
+              "finding_shape": {
+                "id": "string",
+                "summary": "string",
+                "severity": "string",
+                "source": "string",
+                "details": "string?",
+                "related_artifacts": [
+                  "string"
+                ]
+              }
+            }
+          }
+        },
+        "cycle_id": "cycle-0001",
+        "execution_ref": {
+          "cycle_id": "cycle-0001",
+          "work_package_id": "wp-1",
+          "executor": "codex",
+          "execution_id": "codex:wp-1"
+        },
+        "submission_receipt": {
+          "execution_id": "codex:wp-1",
+          "accepted": true,
+          "message": "stub transport submitted",
+          "metadata": {
+            "transport": "stub"
+          }
+        },
+        "submit_boundary": "codex.submit_request",
+        "runtime_context": {
+          "cycle_id": "cycle-0001",
+          "initiative_id": "i1",
+          "project_id": "p1",
+          "working_dir": ".",
+          "project_archetype": "ecommerce",
+          "project_pull_policy_overrides": [],
+          "project_llm_preferences": {},
+          "project_knowledge_preferences": {},
+          "node_knowledge_packet": {
+            "brief": "Execute implementation work with the current project-specific knowledge focus. Goal: demo",
+            "focus": {
+              "phase": "implementation",
+              "role_id": "software_engineer",
+              "domain": "frontend",
+              "specialized_knowledge": {
+                "focus": [
+                  "ecommerce",
+                  "implementation",
+                  "frontend",
+                  "software_engineer"
+                ],
+                "knowledge_ids": [
+                  "domain.ecommerce",
+                  "phase.implementation",
+                  "phase.testing"
+                ],
+                "titles": [
+                  "E-Commerce Domain",
+                  "Implementation",
+                  "Testing and Verification"
+                ],
+                "tags": [
+                  "acceptance",
+                  "cart",
+                  "catalog",
+                  "checkout",
+                  "compile_verify",
+                  "ecommerce",
+                  "implementation",
+                  "incremental_delivery",
+                  "order",
+                  "payment",
+                  "qa",
+                  "regression",
+                  "testing",
+                  "translation",
+                  "verification"
+                ],
+                "summary": "Commerce flow, core entities, consistency rules, and checkout/order constraints. | Implementation strategy selection, bounded execution, and compile-verify discipline. | Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+              }
+            },
+            "constraints": [],
+            "acceptance": [],
+            "deep_refs": [
+              "domain.ecommerce",
+              "phase.implementation",
+              "phase.testing"
+            ]
+          },
+          "context_pull_manifest": {
+            "refs": [
+              "domain.ecommerce",
+              "phase.implementation",
+              "phase.testing",
+              "project://p1",
+              "artifact://runtime/p1/concept_brief.md",
+              "artifact://runtime/p1/acceptance_goals.json",
+              "memory://project/p1/latest-specialized-knowledge",
+              "memory://project/p1/latest-concept-decision"
+            ],
+            "preview": [
+              {
+                "ref": "domain.ecommerce",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "E-Commerce Domain",
+                "content": "Commerce flow, core entities, consistency rules, and checkout/order constraints."
+              },
+              {
+                "ref": "phase.implementation",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "Implementation",
+                "content": "Implementation strategy selection, bounded execution, and compile-verify discipline."
+              },
+              {
+                "ref": "phase.testing",
+                "kind": "knowledge",
+                "mode": "summary",
+                "title": "Testing and Verification",
+                "content": "Verification strategy, seam-focused QA, regression checks, and acceptance closure."
+              },
+              {
+                "ref": "project://p1",
+                "kind": "project",
+                "mode": "summary",
+                "title": "demo",
+                "content": "demo [ecommerce] phase=implementation domains=frontend"
+              },
+              {
+                "ref": "artifact://runtime/p1/concept_brief.md",
+                "kind": "artifact",
+                "mode": "summary",
+                "title": "runtime/p1/concept_brief.md"
+              },
+              {
+                "ref": "artifact://runtime/p1/acceptance_goals.json",
+                "kind": "artifact",
+                "mode": "summary",
+                "title": "runtime/p1/acceptance_goals.json"
+              },
+              {
+                "ref": "memory://project/p1/latest-specialized-knowledge",
+                "kind": "memory",
+                "mode": "summary",
+                "title": "project/p1/latest-specialized-knowledge"
+              },
+              {
+                "ref": "memory://project/p1/latest-concept-decision",
+                "kind": "memory",
+                "mode": "summary",
+                "title": "project/p1/latest-concept-decision"
+              }
+            ]
+          },
+          "pull_strategy": {
+            "mode": "structured",
+            "budget": null,
+            "refs": [
+              "phase.implementation",
+              "project://p1",
+              "memory://project/p1/latest-specialized-knowledge"
+            ]
+          },
+          "pulled_context": [
+            {
+              "ref": "phase.implementation",
+              "kind": "knowledge",
+              "mode": "structured",
+              "title": "Implementation",
+              "content": "",
+              "structured": {
+                "doc_id": "phase.implementation",
+                "title": "Implementation",
+                "category": "phase",
+                "tags": [
+                  "implementation",
+                  "translation",
+                  "compile_verify",
+                  "incremental_delivery"
+                ],
+                "path": "/Users/aa/workspace/devforge/src/devforge/knowledge/content/phases/implementation.md",
+                "summary": "Implementation strategy selection, bounded execution, and compile-verify discipline."
+              }
+            },
+            {
+              "ref": "project://p1",
+              "kind": "project",
+              "mode": "structured",
+              "title": "demo",
+              "content": "",
+              "structured": {
+                "project_id": "p1",
+                "initiative_id": "i1",
+                "parent_project_id": null,
+                "name": "demo",
+                "kind": "frontend",
+                "status": "active",
+                "current_phase": "implementation",
+                "phases": [
+                  "implementation"
+                ],
+                "project_archetype": "ecommerce",
+                "domains": [
+                  "frontend"
+                ],
+                "active_roles": [
+                  "software_engineer"
+                ],
+                "concept_model_refs": [],
+                "contracts": [],
+                "pull_policy_overrides": [],
+                "llm_preferences": {},
+                "knowledge_preferences": {},
+                "executor_policy_ref": null,
+                "work_package_ids": [
+                  "wp-1"
+                ],
+                "seam_ids": [],
+                "artifacts": {
+                  "repo_paths": [],
+                  "docs": []
+                },
+                "project_memory_ref": null,
+                "assumptions": [],
+                "requirement_events": [],
+                "children": [],
+                "coordination_project": false,
+                "created_at": null,
+                "updated_at": null
+              }
+            },
+            {
+              "ref": "memory://project/p1/latest-specialized-knowledge",
+              "kind": "memory",
+              "mode": "structured",
+              "title": "project/p1/latest-specialized-knowledge",
+              "content": "",
+              "structured": {}
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "results": [
+    {
+      "execution_id": "codex:wp-1",
+      "executor": "codex",
+      "work_package_id": "wp-1",
+      "cycle_id": "cycle-0001",
+      "status": "completed",
+      "summary": "stub execution completed",
+      "execution_ref": {
+        "cycle_id": "cycle-0001",
+        "work_package_id": "wp-1",
+        "executor": "codex",
+        "execution_id": "codex:wp-1"
+      },
+      "artifacts_created": [],
+      "artifacts_modified": [],
+      "tests_run": [],
+      "findings": [],
+      "handoff_notes": [],
+      "raw_output_ref": null,
+      "started_at": null,
+      "completed_at": null
+    }
+  ],
+  "events": [
+    {
+      "event_id": "cycle-0001:work_package_dispatched:wp-1:1",
+      "event_type": "work_package_dispatched",
+      "scope_id": "wp-1",
+      "payload": {
+        "executor": "codex",
+        "accepted": true,
+        "execution_id": "codex:wp-1",
+        "cycle_id": "cycle-0001",
+        "execution_ref": {
+          "cycle_id": "cycle-0001",
+          "work_package_id": "wp-1",
+          "executor": "codex",
+          "execution_id": "codex:wp-1"
+        }
+      }
+    },
+    {
+      "event_id": "cycle-0001:executor_result_normalized:wp-1:2",
+      "event_type": "executor_result_normalized",
+      "scope_id": "wp-1",
+      "payload": {
+        "executor": "codex",
+        "status": "completed",
+        "execution_id": "codex:wp-1",
+        "cycle_id": "cycle-0001",
+        "execution_ref": {
+          "cycle_id": "cycle-0001",
+          "work_package_id": "wp-1",
+          "executor": "codex",
+          "execution_id": "codex:wp-1"
+        }
+      }
+    },
+    {
+      "event_id": "cycle-0001:cycle_completed:i1:3",
+      "event_type": "cycle_completed",
+      "scope_id": "i1",
+      "payload": {
+        "initiative_id": "i1",
+        "project_id": "p1",
+        "selected_work_packages": [
+          "wp-1"
+        ],
+        "cycle_id": "cycle-0001"
+      }
+    }
+  ],
+  "snapshot": {
+    "initiative": {
+      "initiative_id": "i1",
+      "name": "demo",
+      "goal": "demo",
+      "status": "active",
+      "project_ids": [
+        "p1"
+      ],
+      "shared_concepts": [],
+      "shared_contracts": [],
+      "initiative_memory_ref": null,
+      "global_acceptance_goals": [],
+      "requirement_event_ids": [],
+      "scheduler_state": {}
+    },
+    "projects": [
+      {
+        "project_id": "p1",
+        "initiative_id": "i1",
+        "parent_project_id": null,
+        "name": "demo",
+        "kind": "frontend",
+        "status": "active",
+        "current_phase": "implementation",
+        "phases": [
+          "implementation"
+        ],
+        "project_archetype": "ecommerce",
+        "domains": [
+          "frontend"
+        ],
+        "active_roles": [
+          "software_engineer"
+        ],
+        "concept_model_refs": [],
+        "contracts": [],
+        "pull_policy_overrides": [],
+        "llm_preferences": {},
+        "knowledge_preferences": {},
+        "executor_policy_ref": null,
+        "work_package_ids": [
+          "wp-1"
+        ],
+        "seam_ids": [],
+        "artifacts": {
+          "repo_paths": [],
+          "docs": []
+        },
+        "project_memory_ref": null,
+        "assumptions": [],
+        "requirement_events": [],
+        "children": [],
+        "coordination_project": false,
+        "created_at": null,
+        "updated_at": null
+      }
+    ],
+    "work_packages": [
+      {
+        "work_package_id": "wp-1",
+        "initiative_id": "i1",
+        "project_id": "p1",
+        "phase": "implementation",
+        "domain": "frontend",
+        "role_id": "software_engineer",
+        "title": "demo",
+        "goal": "demo",
+        "status": "verified",
+        "priority": 100,
+        "executor": "codex",
+        "fallback_executors": [],
+        "inputs": [],
+        "deliverables": [],
+        "constraints": [],
+        "acceptance_criteria": [],
+        "depends_on": [],
+        "blocks": [],
+        "related_seams": [],
+        "assumptions": [],
+        "artifacts_created": [],
+        "findings": [],
+        "handoff_notes": [
+          "stub execution completed"
+        ],
+        "attempt_count": 1,
+        "max_attempts": 1,
+        "created_at": null,
+        "updated_at": null,
+        "last_execution_ref": {
+          "cycle_id": "cycle-0001",
+          "work_package_id": "wp-1",
+          "executor": "codex",
+          "execution_id": "codex:wp-1"
+        },
+        "execution_history": [
+          {
+            "cycle_id": "cycle-0001",
+            "work_package_id": "wp-1",
+            "executor": "codex",
+            "execution_id": "codex:wp-1"
+          }
+        ]
+      }
+    ],
+    "seams": []
+  }
+}

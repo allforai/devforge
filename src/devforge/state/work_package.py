@@ -17,6 +17,7 @@ WorkPackageStatus = Literal[
     "verified",
     "failed",
     "deprecated",
+    "spawn_waiting",
 ]
 
 
@@ -60,4 +61,5 @@ class WorkPackage:
     created_at: str | None = None
     updated_at: str | None = None
     derivation_ring: int = 0
+    parent_id: str | None = None
     backfill_source: str | None = None

@@ -1,0 +1,40 @@
+{
+  "brief": "Execute analysis_design work with the current project-specific knowledge focus. Goal: Analyze the current repository, map its structure, and define the first DevForge work plan.",
+  "focus": {
+    "phase": "analysis_design",
+    "role_id": "technical_architect",
+    "domain": "core",
+    "specialized_knowledge": {
+      "focus": [
+        "general",
+        "analysis_design",
+        "core",
+        "technical_architect"
+      ],
+      "knowledge_ids": [
+        "phase.analysis_design"
+      ],
+      "titles": [
+        "Analysis and Design"
+      ],
+      "tags": [
+        "contracts",
+        "design",
+        "domain_model",
+        "task_shaping"
+      ],
+      "summary": "Work-package shaping, domain analysis, contract design, and architecture translation guidance."
+    }
+  },
+  "constraints": [
+    "work from the existing repository structure",
+    "avoid broad refactors before repository mapping is complete"
+  ],
+  "acceptance": [
+    "major code areas identified",
+    "initial work packages proposed"
+  ],
+  "deep_refs": [
+    "phase.analysis_design"
+  ]
+}

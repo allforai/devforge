@@ -1,0 +1,10 @@
+{
+  "id": "fix-main-reset-workflow-status",
+  "capability": "code-edit",
+  "goal": "Edit /Users/aa/workspace/devforge/src/devforge/main.py in the _run_wf_command() function, in the 'if wf_cmd == \"reset\"' branch (around line 1043).\nThe current reset block reads:\n    if wf_cmd == \"reset\":\n        wf_id = active_workflow_id(cwd)\n        if not wf_id:\n            print(\"No active workflow.\")\n            return 1\n        manifest = read_manifest(cwd, wf_id)\n        for node in manifest[\"nodes\"]:\n            if node[\"id\"] == args.node_id:\n                node[\"status\"] = \"pending\"\n                node[\"last_error\"] = None\n                write_manifest(cwd, wf_id, manifest)\n                print(f\"✅ Node '{args.node_id}' reset to pending.\")\n                return 0\n        print(f\"Node '{args.node_id}' not found in active workflow.\")\n        return 1\n\nReplace the inner block (after write_manifest but before the print) so the block becomes:\n    if wf_cmd == \"reset\":\n        wf_id = active_workflow_id(cwd)\n        if not wf_id:\n            print(\"No active workflow.\")\n            return 1\n        manifest = read_manifest(cwd, wf_id)\n        for node in manifest[\"nodes\"]:\n            if node[\"id\"] == args.node_id:\n                node[\"status\"] = \"pending\"\n                node[\"last_error\"] = None\n                write_manifest(cwd, wf_id, manifest)\n                if manifest[\"workflow_status\"] == \"failed\":\n                    from devforge.workflow.store import _sync_index_status\n                    manifest[\"workflow_status\"] = \"running\"\n                    write_manifest(cwd, wf_id, manifest)\n                    _sync_index_status(cwd, wf_id, \"active\")\n                print(f\"✅ Node '{args.node_id}' reset to pending.\")\n                return 0\n        print(f\"Node '{args.node_id}' not found in active workflow.\")\n        return 1\n\nNo other changes.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": []
+}

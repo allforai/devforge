@@ -1,0 +1,15 @@
+{
+  "id": "run-tests",
+  "capability": "shell",
+  "goal": "Run the following command from /Users/aa/workspace/devforge and report the full output:\n  cd /Users/aa/workspace/devforge && uv run pytest tests/test_workflow_engine.py tests/test_main_cli.py -q\nAll tests must pass. If any tests fail, report the failure details.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": [
+    "fix-engine-import-timeout",
+    "fix-engine-workflow-failed",
+    "fix-main-reset-workflow-status",
+    "fix-repl-goal-truncation"
+  ]
+}

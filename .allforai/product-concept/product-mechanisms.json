@@ -1,0 +1,114 @@
+{
+  "governance_styles": [
+    {
+      "domain": "work package lifecycle",
+      "style": "multi_stage",
+      "description": "9 explicit statuses form a directed lifecycle with manual transition triggers. 'proposed' and 'ready' require planner assignment; 'running' requires executor dispatch; 'waiting_review' and 'verified' reflect human or acceptance-node gating; 'failed/deprecated' are terminal.",
+      "evidence": [
+        "src/devforge/state/work_package.py:10-20 — WorkPackageStatus Literal: proposed/ready/running/blocked/waiting_review/completed/verified/failed/deprecated",
+        "src/devforge/graph/builder.py — run_cycle() drives status transitions via node sequence, not auto-promotion"
+      ]
+    },
+    {
+      "domain": "executor retry routing",
+      "style": "rule_then_llm",
+      "description": "resolve_retry_action() applies deterministic guardrails (attempt_count >= max_attempts → final_fail) first. Only when rules pass does control flow to llm_retry_decider() for contextual routing (switch_executor/requeue/block/replan/final_fail).",
+      "evidence": [
+        "src/devforge/planning/retry_policy.py:8-47 — rule-based guardrail: attempt_count, seam/contract signals, executor fallback list",
+        "src/devforge/planning/retry_decision.py — llm_retry_decider() called only after rule guardrail passes"
+      ]
+    },
+    {
+      "domain": "seam lifecycle",
+      "style": "explicit_freeze_gate",
+      "description": "Seam must reach 'frozen' status before parallel implementation is allowed. verify_seam_compliance() enforces this gate by checking acceptance criteria coverage and deviation keywords in executor summaries.",
+      "evidence": [
+        "src/devforge/state/seam.py — SeamState status: draft/reviewing/frozen/implemented/verified/broken/deprecated",
+        "src/devforge/seams/verifier.py:46-144 — verify_seam_compliance() — compliance checked against wp_results summaries",
+        "PLAN.md:424-445 — seam workflow: define→generate→review→freeze→allow parallel implementation"
+      ]
+    },
+    {
+      "domain": "requirement change",
+      "style": "structured_event_patch",
+      "description": "Requirement changes enter as RequirementEvent records (type: add/modify/remove/reprioritize) with patch_status lifecycle (recorded→analyzing→planned→applied/rejected). apply_requirement_events() performs incremental graph patches, not full rewrite.",
+      "evidence": [
+        "src/devforge/state/work_package.py:57 — replan_required bool field",
+        "src/devforge/planning/graph_patch.py — apply_requirement_events(), apply_patch_operations(), apply_project_split()",
+        "PLAN.md:416-419 — 'Requirement change is a structured event, not informal chat drift. The engine should patch graph state incrementally.'"
+      ]
+    },
+    {
+      "domain": "workset selection",
+      "style": "priority_and_dependency_filter",
+      "description": "select_workset() applies priority ordering + seam freeze gate + dependency readiness filter. Batch selection explicitly avoids work packages with unresolved input artifacts or unfrozen seam dependencies.",
+      "evidence": [
+        "src/devforge/scheduler/workset_selector.py — select_workset() with priority sort and dependency filter",
+        "PLAN.md:693-707 — workset selection rules: prefer frozen contracts, avoid unresolved inputs and non-frozen seams"
+      ]
+    },
+    {
+      "domain": "acceptance evaluation",
+      "style": "llm_verdict_with_gap_attribution",
+      "description": "evaluate_acceptance() returns AcceptanceVerdict combining goal completion, closure density (ring-0/ring-1 task coverage), and work package results. On failure, analyze_gaps() generates RemediationPackage with LLM-attributed gap items.",
+      "evidence": [
+        "src/devforge/planning/acceptance.py — evaluate_acceptance()",
+        "src/devforge/planning/gap_analyzer.py — analyze_gaps() → RemediationPackage",
+        "src/devforge/state/acceptance.py — AcceptanceVerdict, GoalCheckResult, GapItem, ClosureDensityScore dataclasses"
+      ]
+    }
+  ],
+  "system_boundaries": {
+    "in_scope": [
+      "Orchestration state machine (LangGraph meta-graph with 9 nodes)",
+      "Work package lifecycle and status transitions",
+      "Role registry and phase→role→executor resolution",
+      "Executor adapter Protocol and registry",
+      "Context pull manifest and URI resolution (project://, artifact://, memory://)",
+      "Knowledge selection and payload assembly",
+      "Retry routing (rule guardrail + LLM decider)",
+      "Seam governance (freeze/verify/patch)",
+      "Requirement event patching",
+      "Four-layer persistence (snapshot/event/artifact/memory)",
+      "CLI interface and onboarding wizard"
+    ],
+    "external": [
+      "Executor-owned: prompt format construction, actual code writing/reading, test execution, output artifact content — ExecutorAdapter.normalize_result() is the only re-entry boundary",
+      "LLM provider-owned: model selection, token limits, API rate limiting — LLMClient Protocol abstracts OpenRouter and Google GenAI",
+      "Tool-owned: web search (Brave), image generation (fal.ai), UI prototyping (Google Stitch) — injected only into tool-enhanced node variants",
+      "OS/environment-owned: subprocess lifecycle, working directory paths, binary PATH discovery"
+    ]
+  },
+  "content_lifecycle": {
+    "stages": [
+      "proposed — work package exists in plan but not yet ready for execution",
+      "ready — all input dependencies resolved, available for workset selection",
+      "running — dispatched to executor, SubmissionReceipt recorded",
+      "blocked — waiting on seam contract or external dependency",
+      "waiting_review — executor returned result, pending human or acceptance-node review",
+      "completed — result normalized and recorded",
+      "verified — acceptance criteria confirmed by acceptance node or human",
+      "failed — executor returned failure, retry routing exhausted",
+      "deprecated — invalidated by requirement patch or project restructuring"
+    ],
+    "transitions": [
+      "proposed → ready: execution_planner role or planning_and_shaping_node assigns dependencies and executor",
+      "ready → running: batch_dispatch node selects from ready_queue via select_workset() and calls adapter.dispatch()",
+      "running → waiting_review / completed / failed: batch_verification node normalizes ExecutorResult",
+      "waiting_review → verified: acceptance_and_gap_check node or human confirmation",
+      "failed → ready (requeue) / ready with new executor (switch_executor) / blocked / deprecated: resolve_retry_action() + llm_retry_decider()",
+      "any status → deprecated: apply_requirement_events() marks affected work packages on requirement change",
+      "any status → failed: max_attempts reached in resolve_retry_action() → final_fail"
+    ]
+  },
+  "distribution_model": {
+    "type": "open_source_python_package",
+    "install": "pip install devforge  OR  uv sync --extra dev",
+    "entry_point": "devforge CLI (pyproject.toml console_scripts)",
+    "monetization": "none",
+    "evidence": [
+      "pyproject.toml — Python >=3.12, setuptools, uv; no payment or license enforcement code",
+      "README.md:18 — 'uv sync --extra dev' as the install command"
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "mission": "Help tool-chain engineers orchestrate multi-project software development via a stateful LangGraph kernel that keeps Python in control of planning while delegating bounded work to pluggable AI executors.",
+  "target_market": "Python tool-chain engineers and AI-workflow integrators building developer tooling, not end-consumer app users.",
+  "roles": [
+    {
+      "id": "integrator",
+      "name": "CLI User",
+      "high_frequency_tasks": ["devforge init", "devforge snapshot", "devforge fixture"]
+    },
+    {
+      "id": "extender",
+      "name": "Adapter Implementer",
+      "high_frequency_tasks": ["implement ExecutorAdapter Protocol", "tune pull_policy_overrides"]
+    },
+    {
+      "id": "contributor",
+      "name": "Graph Modifier",
+      "high_frequency_tasks": ["add graph nodes", "extend RuntimeState", "write planning deciders"]
+    }
+  ],
+  "governance_styles": [
+    {"domain": "work_package_lifecycle", "style": "multi_stage", "statuses": 9},
+    {"domain": "seam_contracts", "style": "explicit_freeze_gate"},
+    {"domain": "retry_routing", "style": "rule_then_llm"},
+    {"domain": "requirement_change", "style": "structured_event_patch"}
+  ],
+  "api_philosophy": "Python owns orchestration, executor owns bounded work — explicit Protocol over convention, typed RuntimeState over dynamic dicts.",
+  "errc_highlights": {
+    "must_have": [
+      "LangGraph orchestration kernel (run_cycle)",
+      "Role-driven dispatch (phase→role→executor)",
+      "ExecutorAdapter Protocol + registry",
+      "9-status work package lifecycle",
+      "4-layer persistence for cycle resume"
+    ],
+    "differentiators": [
+      "Seam governance as first-class objects",
+      "Incremental requirement patching (not chat drift)",
+      "URI-based context pull (project://  artifact://  memory://)",
+      "Role separates responsibility from executor identity"
+    ]
+  }
+}

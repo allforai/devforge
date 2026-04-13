@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "framework": "diataxis",
+  "current_coverage": {
+    "tutorials": "Partial. README.md Quick Start covers fixture commands (devforge fixture game_project) and basic init+snapshot flow. However, the README is written entirely in Chinese — no English tutorial exists. No guided tutorial walks through 'build your first project from scratch' or 'write your first custom executor'. 5-minute success path is technically possible but not narrated.",
+    "how_to_guides": "Partial. docs/cli.md covers all CLI subcommands with command syntax. docs/project-config.md covers llm_preferences and knowledge_preferences keys. Both are reference-style rather than task-oriented (missing 'how to recover from a blocked executor', 'how to implement a custom adapter', 'how to tune context pull for a large codebase').",
+    "reference": "Minimal. No dedicated API reference documentation. Source code docstrings are sparse. The only machine-readable API surface information lives in the .allforai/bootstrap artifacts. No snapshot JSON schema reference. No event type reference. No WorkPackageStatus state machine diagram.",
+    "explanation": "Partial, contributor-oriented. PLAN.md (1000+ lines) is a detailed architectural design document explaining LangGraph kernel design, role system, seam governance, and persistence strategy. However, it is: (a) not discovery-oriented, (b) outdated on phase 1/2 completion status (C002, C003), (c) not linked from the README. No explanation of 'why LangGraph vs alternatives', 'why role separation matters', or 'how the execution model differs from chat-based AI tools'."
+  },
+  "documents": [
+    {
+      "title": "Getting Started: Your First DevForge Cycle (English)",
+      "type": "tutorial",
+      "audience": "integrator",
+      "priority": "high",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "No English Getting Started document exists. README.md is in Chinese. A 5-minute English tutorial covering: install via uv, run fixture cycle, understand output, init own project, run first snapshot cycle — is the single highest-priority gap. This is the evaluator's first touchpoint and currently has no English entry."
+    },
+    {
+      "title": "Quick Start (README.md — Chinese)",
+      "type": "tutorial",
+      "audience": "integrator",
+      "priority": "high",
+      "current_status": "partial",
+      "existing_file": "README.md",
+      "gap_description": "Chinese Quick Start exists and covers fixture + init + snapshot commands. Gaps: (1) test count is outdated ('98 passed' vs actual 256, C001), (2) no section on what fixture output means, (3) no link to English tutorial, (4) no section on cycle result structure."
+    },
+    {
+      "title": "How to Implement a Custom Executor Adapter",
+      "type": "how-to",
+      "audience": "extender",
+      "priority": "high",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "The ExecutorAdapter Protocol (11 methods) is the primary extension point for extenders, but no how-to guide exists. Must cover: choosing between Protocol vs BaseExecutorAdapter, which 3 methods to implement vs inherit, how to use SubprocessTransport, how to register the adapter, and how to test without live CLI tools."
+    },
+    {
+      "title": "How to Configure Per-Project LLM Routing and Context Pull",
+      "type": "how-to",
+      "audience": "extender",
+      "priority": "high",
+      "current_status": "partial",
+      "existing_file": "docs/project-config.md",
+      "gap_description": "docs/project-config.md covers llm_preferences and knowledge_preferences keys. Missing: (1) pull_policy_overrides full schema (ref_patterns, role_id, phase fields), (2) worked example showing a before/after dispatch metadata comparison, (3) explanation of how overrides interact with llm.yaml global config, (4) how to use wizard vs manual config."
+    },
+    {
+      "title": "CLI Reference",
+      "type": "reference",
+      "audience": "integrator",
+      "priority": "medium",
+      "current_status": "partial",
+      "existing_file": "docs/cli.md",
+      "gap_description": "docs/cli.md covers init, fixture, snapshot, doctor subcommands with command syntax. Missing: (1) repl command documentation, (2) --json flag behavior description, (3) exit codes reference, (4) explanation of what each output field means (cycle_id, dispatches, results, events)."
+    },
+    {
+      "title": "Snapshot JSON Schema Reference",
+      "type": "reference",
+      "audience": "integrator",
+      "priority": "high",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "No snapshot JSON schema reference exists. Integrators who want to craft a snapshot from scratch (without 'devforge init') have no documented field list. Must cover: top-level structure, initiative fields, project fields (including kind, project_archetype, phases), work_package fields (all 30+ fields), WorkPackageStatus values, seam fields. Could be JSON Schema or documented with field descriptions."
+    },
+    {
+      "title": "Python SDK API Reference",
+      "type": "reference",
+      "audience": "extender",
+      "priority": "high",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "No generated or hand-written API reference for the Python SDK surface. Must cover at minimum: run_cycle(), run_fixture_cycle(), run_snapshot_cycle(), run_executor_doctor(), ExecutorAdapter Protocol (all 11 methods), build_local_workspace_persistence(), WorkPackage dataclass fields. Can be generated from docstrings if docstrings are added."
+    },
+    {
+      "title": "ExecutorAdapter Protocol Reference",
+      "type": "reference",
+      "audience": "extender",
+      "priority": "high",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "The ExecutorAdapter Protocol is the primary extension point but has no reference documentation beyond source code. Must document each of the 11 Protocol methods with: signature, when it's called by run_cycle, what the return value must contain, which methods BaseExecutorAdapter handles vs requires override."
+    },
+    {
+      "title": "WorkPackageStatus State Machine Reference",
+      "type": "reference",
+      "audience": "extender",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "The 9-status work package lifecycle (proposed→ready→running→blocked/waiting_review→completed/verified/failed/deprecated) is not documented with valid transitions. Integrators need this to understand what status values mean in cycle output and when to intervene."
+    },
+    {
+      "title": "How to Recover from Blocked or Failed Executor Work",
+      "type": "how-to",
+      "audience": "integrator",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "When devforge doctor shows executors as 'blocked' or 'missing', or when a cycle result shows work packages in 'failed' status, users have no documented recovery path. Must cover: understanding retry_action values (switch_executor, requeue, block, replan, final_fail), how to edit snapshot to reset a failed WP, how to add fallback_executors."
+    },
+    {
+      "title": "How to Run Cycles in CI Without Live Executors",
+      "type": "how-to",
+      "audience": "integrator",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "CI environments often block subprocess execution of AI CLI tools. No guide explains how to run meaningful cycles in offline/stub mode, interpret stub results, and use MockLLMClient for planning steps without live API calls."
+    },
+    {
+      "title": "DevForge Architecture: Why a Stateful Kernel, Not a Chat Loop",
+      "type": "explanation",
+      "audience": "contributor",
+      "priority": "high",
+      "current_status": "partial",
+      "existing_file": "PLAN.md",
+      "gap_description": "PLAN.md covers architecture decisions but is outdated (phase 1/2 status, C002/C003) and is 1000+ lines targeting contributors. No shorter integrator-facing explanation exists for: why LangGraph was chosen, what the meta-graph execution model means, how Python 'owning orchestration' differs from multi-agent chat frameworks, and what the 'executor boundary' guarantees."
+    },
+    {
+      "title": "Understanding the Role System and Work Package Routing",
+      "type": "explanation",
+      "audience": "extender",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "The phase → role → executor routing chain is a key differentiator but is not explained in any user-facing document. Must explain: what roles are (product_manager, technical_architect, etc.), how executor_policy resolves routing, how the same role can run on different executors, and how to add a new role."
+    },
+    {
+      "title": "Understanding the Four-Layer Persistence Model",
+      "type": "explanation",
+      "audience": "extender",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "The SQLite snapshot + event + JSON memory + filesystem artifact four-layer model is not explained anywhere for users. Must cover: what each layer stores, why the separation exists, how to query each layer for debugging, and when to use JsonStore vs SQLiteSnapshotStore."
+    },
+    {
+      "title": "Contributor Guide: Adding a New Graph Node",
+      "type": "how-to",
+      "audience": "contributor",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "No contributor guide for the most common contribution pattern: adding a meta-graph node. Must cover: RuntimeState field addition, node function signature contract, META_GRAPH_NODES registration, langgraph_builder.py edge wiring, transitions.py update, and test pattern with MockLLMClient."
+    },
+    {
+      "title": "Troubleshooting Guide / FAQ",
+      "type": "how-to",
+      "audience": "integrator",
+      "priority": "medium",
+      "current_status": "missing",
+      "existing_file": null,
+      "gap_description": "No troubleshooting guide exists. Common issues without documented solutions: 'codex network path is blocked', 'claude not logged in for non-interactive use', empty cycle results (no ready work packages), snapshot codec errors, llm.yaml not found."
+    }
+  ],
+  "critical_gaps": [
+    "English Getting Started tutorial — README.md is Chinese-only; the highest-priority discovery and evaluation barrier for non-Chinese-speaking developers",
+    "Snapshot JSON schema reference — integrators cannot create snapshots from scratch without reading state/ source code; blocks adoption for teams who want to generate snapshots programmatically",
+    "ExecutorAdapter Protocol how-to + reference — the primary extension point for extenders has no guided documentation; limits ecosystem growth",
+    "Python SDK API reference — no formal API docs for Tier 1 and Tier 2 interfaces; extenders and contributors must read source code for function signatures",
+    "Architecture explanation for integrators — PLAN.md is contributor-only; no shorter 'why DevForge' explanation distinguishes it from generic LangGraph usage for evaluators"
+  ]
+}

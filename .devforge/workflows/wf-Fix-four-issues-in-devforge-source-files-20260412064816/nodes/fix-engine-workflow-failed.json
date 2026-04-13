@@ -1,0 +1,12 @@
+{
+  "id": "fix-engine-workflow-failed",
+  "capability": "code-edit",
+  "goal": "Edit /Users/aa/workspace/devforge/src/devforge/workflow/engine.py in the run_one_cycle() function (around line 231).\nThe current code reads:\n    candidates = select_next_nodes(manifest)\n    if not candidates:\n        pending = [n[\"id\"] for n in manifest[\"nodes\"] if n[\"status\"] == \"pending\"]\n        running = [n[\"id\"] for n in manifest[\"nodes\"] if n[\"status\"] == \"running\"]\n        write_manifest(root, wf_id, manifest)\n        _write_status_json(root, wf_id, manifest, [])\n        return {\"status\": \"blocked\", \"dispatched\": [], \"pending\": pending, \"running\": running}\n\nReplace it with:\n    candidates = select_next_nodes(manifest)\n    if not candidates:\n        pending = [n[\"id\"] for n in manifest[\"nodes\"] if n[\"status\"] == \"pending\"]\n        running = [n[\"id\"] for n in manifest[\"nodes\"] if n[\"status\"] == \"running\"]\n        if not running:\n            exhausted = [n[\"id\"] for n in manifest[\"nodes\"] if n[\"status\"] == \"failed\" and n.get(\"attempt_count\", 0) >= MAX_ATTEMPTS]\n            if exhausted:\n                manifest[\"workflow_status\"] = \"failed\"\n                write_manifest(root, wf_id, manifest)\n                _sync_index_status(root, wf_id, \"failed\")\n                _write_status_json(root, wf_id, manifest, [])\n                return {\"status\": \"workflow_failed\", \"dispatched\": [], \"blocked_by\": exhausted}\n        write_manifest(root, wf_id, manifest)\n        _write_status_json(root, wf_id, manifest, [])\n        return {\"status\": \"blocked\", \"dispatched\": [], \"pending\": pending, \"running\": running}\n\nNo other changes.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": [
+    "fix-engine-import-timeout"
+  ]
+}

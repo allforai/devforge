@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0",
+  "tiers": [
+    {
+      "tier": 1,
+      "name": "main entrypoints",
+      "description": "Primary SDK surface. 80% of users interact only at this tier.",
+      "interfaces": [
+        {
+          "module": "devforge.graph.builder",
+          "name": "run_cycle",
+          "signature": "run_cycle(snapshot: dict[str, Any], *, persistence: WorkspacePersistence | None = None) -> dict[str, Any]",
+          "intent": "Drive one full orchestration cycle: workset selection, concept collection, planning, batch dispatch, verification, and requirement patching. Returns a structured result dict with cycle_id, dispatches, results, events, and updated snapshot.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Clear single-responsibility. Optional persistence kwarg follows Pit of Success pattern: zero-config works, persistence is opt-in. Return type as dict[str,Any] trades IDE discoverability for flexibility — a typed CycleResult dataclass would improve ergonomics but is not essential for v1.",
+          "example": "from devforge.graph.builder import run_cycle\nresult = run_cycle(snapshot)\nprint(result['cycle_id'], result['dispatches'])"
+        },
+        {
+          "module": "devforge.main",
+          "name": "run_fixture_cycle",
+          "signature": "run_fixture_cycle(fixture_name: str) -> dict[str, Any]",
+          "intent": "Load a built-in fixture snapshot (game_project, ecommerce_project) and run one minimal orchestration cycle. Primary 5-minute evaluation path.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Minimal surface. String fixture name is discoverable via CLI help. Auto-applies sibling project_config.json for zero-config fixture runs.",
+          "example": "from devforge.main import run_fixture_cycle\nresult = run_fixture_cycle('game_project')\nprint(result['cycle_id'])"
+        },
+        {
+          "module": "devforge.main",
+          "name": "run_snapshot_cycle",
+          "signature": "run_snapshot_cycle(snapshot_path: str | Path, *, project_config_path: str | Path | None = None, persistence_root: str | Path | None = None) -> dict[str, Any]",
+          "intent": "Run one orchestration cycle from an arbitrary snapshot file. Primary programmatic entry for CI/scripted integration.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Accepts str or Path per Python conventions. All optional params are keyword-only, preventing positional mistakes. Persistence is opt-in.",
+          "example": "from devforge.main import run_snapshot_cycle\nresult = run_snapshot_cycle('.devforge/devforge.snapshot.json',\n    project_config_path='.devforge/devforge.project_config.json',\n    persistence_root='.devforge')"
+        },
+        {
+          "module": "devforge.main",
+          "name": "main",
+          "signature": "main(argv: list[str] | None = None) -> int",
+          "intent": "CLI entrypoint dispatching to init / snapshot / fixture / doctor / repl subcommands. Usable as a library function for subprocess-free testing.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Optional argv kwarg allows test-time injection without subprocess overhead. Returns integer exit code per POSIX convention.",
+          "example": "from devforge.main import main\nexit_code = main(['fixture', 'game_project'])"
+        },
+        {
+          "module": "devforge.main",
+          "name": "run_executor_doctor",
+          "signature": "run_executor_doctor(*, cwd: str | Path = '.') -> dict[str, Any]",
+          "intent": "Probe local executor readiness (codex, claude, python) outside the orchestration graph. Returns per-executor availability, status, and actionable summary.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Pure diagnostic function with no side effects. Returns structured dict so callers can parse programmatically. Actionable error messages (e.g., 'claude is installed but not logged in for non-interactive use') are consistent with Midori error model.",
+          "example": "from devforge.main import run_executor_doctor\nresult = run_executor_doctor(cwd='/my/project')\nfor check in result['checks']:\n    print(check['executor'], check['status'])"
+        }
+      ]
+    },
+    {
+      "tier": 2,
+      "name": "extension interfaces",
+      "description": "Adapter implementer surface. Used when adding new executor backends or tuning dispatch behavior.",
+      "interfaces": [
+        {
+          "module": "devforge.executors.base",
+          "name": "ExecutorAdapter",
+          "signature": "Protocol with: name: str, supports_phase(phase) -> bool, supports_role(role_id) -> bool, estimate(wp) -> dict, prepare_request(wp, ctx) -> dict, submit(request) -> SubmissionReceipt, submit_request(request, *, accepted) -> ExecutorDispatch, dispatch(wp, ctx) -> ExecutorDispatch, default_pull_strategy(wp, ctx) -> dict, pull_context(refs, *, broker, mode, budget) -> list[ResolvedContext], poll(execution_id) -> dict, cancel(execution_id) -> dict, normalize_result(raw) -> ExecutorResult",
+          "intent": "Structural Protocol defining the pluggable executor backend contract. Implement all 11 methods and register to replace or extend executor routing.",
+          "ergonomics_score": "ok",
+          "ergonomics_notes": "Protocol-based typing is Pythonic and avoids ABC overhead. 11 methods is substantial — BaseExecutorAdapter provides sensible defaults for ~8 of them, reducing required implementation to 3 core methods (submit, normalize_result, plus CLI-specific helpers). submit vs submit_request vs dispatch naming requires careful reading of docs to understand the progression.",
+          "example": "from devforge.executors.base import ExecutorAdapter, SubmissionReceipt, ExecutorDispatch\nfrom devforge.executors import register_executor_adapter\n\nclass MyAdapter:\n    name = 'my_tool'\n    def supports_phase(self, phase): return True\n    def dispatch(self, wp, ctx): ...\n    # ... implement remaining methods\n\nregister_executor_adapter(MyAdapter())"
+        },
+        {
+          "module": "devforge.executors.adapters",
+          "name": "BaseExecutorAdapter",
+          "signature": "BaseExecutorAdapter(name: str, supported_phases: tuple[str, ...], supported_roles: tuple[str, ...])",
+          "intent": "Concrete base class implementing all ExecutorAdapter methods with stub/SubprocessTransport routing. Subclass and override submit() or build_request() to implement a new executor.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Dataclass with slots for efficiency. SubprocessTransport lifecycle (submit/poll/cancel) is fully handled, reducing custom adapter to CLI argv construction only.",
+          "example": "from devforge.executors.adapters import BaseExecutorAdapter\n\nclass MyToolAdapter(BaseExecutorAdapter):\n    def __init__(self):\n        super().__init__('my_tool', ('implementation',), ('software_engineer',))\n    def _build_cli_argv(self, request): return ['my-tool', '--task', request['goal']]"
+        },
+        {
+          "module": "devforge.executors.base",
+          "name": "ExecutorDispatch",
+          "signature": "ExecutorDispatch(execution_id: str, executor: str, work_package_id: str, accepted: bool, message: str = '', metadata: dict = {})",
+          "intent": "Normalized dispatch record returned immediately after task submission, carrying execution tracking metadata.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Dataclass with slots. All fields are named clearly. accepted: bool is the primary branch signal.",
+          "example": "dispatch = adapter.dispatch(work_package, runtime_context)\nif dispatch.accepted:\n    print(f'Dispatched {dispatch.execution_id}')"
+        },
+        {
+          "module": "devforge.executors.registry",
+          "name": "register_executor_adapter",
+          "signature": "register_executor_adapter(adapter: ExecutorAdapter) -> None",
+          "intent": "Register a custom adapter in the global EXECUTOR_REGISTRY, making it available for phase/role routing.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Simple registry function. EXECUTOR_REGISTRY is a dict keyed by adapter.name — predictable lookup. Import side effects (registry population at __init__.py import time) follow common Python convention.",
+          "example": "from devforge.executors import register_executor_adapter\nregister_executor_adapter(MyToolAdapter())"
+        },
+        {
+          "module": "devforge.persistence.store",
+          "name": "SnapshotStore",
+          "signature": "Protocol: load_snapshot(name) -> dict, save_snapshot(name, data) -> None, list_snapshots() -> list[str]",
+          "intent": "Structural Protocol for snapshot persistence backends. Implement to swap in a custom storage layer (e.g., S3, Postgres).",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Minimal 3-method Protocol. load/save/list naming is consistent and conventional.",
+          "example": "class S3SnapshotStore:\n    def load_snapshot(self, name): ...\n    def save_snapshot(self, name, data): ...\n    def list_snapshots(self): ..."
+        },
+        {
+          "module": "devforge.persistence.context",
+          "name": "build_local_workspace_persistence",
+          "signature": "build_local_workspace_persistence(root: str | Path) -> WorkspacePersistence",
+          "intent": "Factory that assembles the four-layer persistence stack (SQLite snapshots + events, JSON memory, filesystem artifacts) under the given root directory.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Single-call factory following Pit of Success pattern. Caller does not need to know internal store types.",
+          "example": "from devforge.persistence import build_local_workspace_persistence\npersistence = build_local_workspace_persistence('.devforge')"
+        }
+      ]
+    },
+    {
+      "tier": 3,
+      "name": "config and state interfaces",
+      "description": "Advanced configuration and domain model surface. Used for fine-grained control and graph contribution.",
+      "interfaces": [
+        {
+          "module": "devforge.config.project_config",
+          "name": "load_project_config / apply_project_config",
+          "signature": "load_project_config(path: str | Path) -> dict[str, Any]\napply_project_config(snapshot: dict, config: dict) -> dict[str, Any]",
+          "intent": "Load a devforge.project_config.json file and overlay its llm_preferences, knowledge_preferences, and pull_policy_overrides onto a snapshot dict before cycle execution.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Clean separation of load vs apply enables testing apply without filesystem. Returns a new snapshot copy — no mutation.",
+          "example": "from devforge.config import load_project_config, apply_project_config\nconfig = load_project_config('.devforge/devforge.project_config.json')\nsnapshot = apply_project_config(snapshot, config)"
+        },
+        {
+          "module": "devforge.state",
+          "name": "WorkPackage",
+          "signature": "WorkPackage(work_package_id, initiative_id, project_id, phase, domain, role_id, title, goal, status: WorkPackageStatus, executor, ...)",
+          "intent": "Core domain model for a bounded execution unit. 9-status lifecycle (proposed→ready→running→blocked/waiting_review→completed/verified/failed/deprecated).",
+          "ergonomics_score": "ok",
+          "ergonomics_notes": "Immutable dataclass with clear field names. 30+ fields creates a high construction cost for tests — fixture JSON files are the primary construction path. Field naming is mostly consistent with one exception: work_package_id vs project_id vs initiative_id use different abbreviation levels.",
+          "example": "from devforge.state import decode_snapshot\ndata = decode_snapshot(snapshot)\nfor wp in data['work_packages']:\n    print(wp.work_package_id, wp.status)"
+        },
+        {
+          "module": "devforge.state",
+          "name": "decode_snapshot / encode_snapshot",
+          "signature": "decode_snapshot(raw: dict[str, Any]) -> dict[str, Any]\nencode_snapshot(typed: dict[str, Any]) -> dict[str, Any]",
+          "intent": "Convert raw JSON snapshot dicts to/from typed domain model dataclasses. The single serialization boundary for all snapshot I/O.",
+          "ergonomics_score": "ok",
+          "ergonomics_notes": "Returns dict[str, Any] rather than a named container, which means callers must know the key names ('work_packages', 'projects', etc.) by convention. A SnapshotContents named tuple or dataclass would improve type safety.",
+          "example": "from devforge.state import decode_snapshot\ntypes = decode_snapshot(raw_dict)\nwork_packages = types['work_packages']  # list[WorkPackage]"
+        },
+        {
+          "module": "devforge.llm",
+          "name": "build_llm_client_from_config",
+          "signature": "build_llm_client_from_config(config: dict[str, Any]) -> LLMClient",
+          "intent": "Factory that instantiates the correct LLM provider client (OpenRouter, GoogleGenAI, Mock) from a preferences dict.",
+          "ergonomics_score": "good",
+          "ergonomics_notes": "Factory pattern is standard. Config dict schema mirrors llm_preferences from project_config — consistent vocabulary.",
+          "example": "from devforge.llm import build_llm_client_from_config\nclient = build_llm_client_from_config({'provider': 'openrouter', 'model': 'claude-sonnet-4-5'})"
+        },
+        {
+          "module": "devforge.graph.runtime_state",
+          "name": "RuntimeState",
+          "signature": "RuntimeState(workspace_id: str, initiative_id: str | None = None, foreground_project: str | None = None, ...)",
+          "intent": "Mutable operational dataclass passed between all graph nodes in a single cycle. Carries cycle tracking, workset selection, knowledge, dispatch results, and termination signal.",
+          "ergonomics_score": "ok",
+          "ergonomics_notes": "Typed dataclass with explicit fields improves IDE discoverability over dict mutation. Some field names are cycle-internal (e.g., replan_reason, termination_signal) and should not be set by external callers — documentation boundary needs clarification.",
+          "example": "from devforge.graph.runtime_state import RuntimeState\nstate = RuntimeState(workspace_id='ws-1', initiative_id='i-1')\nprint(state.termination_signal, state.current_workset)"
+        }
+      ]
+    }
+  ],
+  "overall_philosophy": "Python owns orchestration, executor owns bounded work. Explicit Protocol over convention, typed RuntimeState over dynamic dicts. Progressive Disclosure: Tier 1 requires zero configuration; Tier 2 requires only Protocol implementation; Tier 3 exposes full internals for graph contributors.",
+  "consistency_issues": [
+    "submit vs submit_request vs dispatch method chain on ExecutorAdapter is confusing — three methods with overlapping responsibilities and unclear call sequence",
+    "run_cycle returns dict[str,Any] while the node spec recommends a typed CycleResult — return type opaqueness forces callers to read tests to learn key names",
+    "decode_snapshot returns dict[str,Any] with string keys — no SnapshotContents typed container means callers must know 'work_packages', 'projects', 'seams' by convention",
+    "stubs.py exports production adapters (not test stubs) — naming is misleading and conflicts with file-catalog.json description (C004)",
+    "WorkPackage has 30+ fields but no builder or factory helper — test construction via raw dict is verbose and error-prone",
+    "PLAN.md phase 1/2 descriptions are out of date with implementation (C002, C003) — new contributors may have wrong expectations about project maturity"
+  ]
+}

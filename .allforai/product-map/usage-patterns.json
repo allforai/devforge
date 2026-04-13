@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0",
+  "patterns": [
+    {
+      "id": "P001",
+      "category": "basic",
+      "name": "Run built-in fixture cycle (offline evaluation)",
+      "scenario": "First-time evaluation, CI smoke test, or verifying that DevForge is installed and the dispatch loop works without a real project or live executors.",
+      "how_to": "# CLI\ndevforge fixture game_project\ndevforge fixture ecommerce_project --json\n\n# Python API\nfrom devforge.main import run_fixture_cycle\nresult = run_fixture_cycle('game_project')\nprint(result['cycle_id'])  # 'cycle-0001'\nprint(result['selected_work_packages'])  # ['wp-combat-core']",
+      "expected_outcome": "Returns JSON with cycle_id, selected_work_packages, dispatches (with executor='codex', metadata including executor_payload), results (status='completed'), events, and updated snapshot with work package status='verified'.",
+      "common_gotchas": [
+        "Output includes 'stub transport submitted' in dispatch metadata — this is expected behavior, not an error; it means no live executor was called",
+        "game_project fixture auto-applies game_project.project_config.json if present alongside the snapshot — preferences are already set",
+        "ecommerce_project.project_config.json exists in fixtures/ — running ecommerce_project fixture will apply it automatically"
+      ]
+    },
+    {
+      "id": "P002",
+      "category": "basic",
+      "name": "Initialize a project and run first cycle",
+      "scenario": "Bootstrapping DevForge into an existing or new project for the first time.",
+      "how_to": "cd /path/to/my-project\ndevforge init\n# Follow wizard: choose AI mode, focus, context size\ndevforge snapshot .devforge/devforge.snapshot.json\n# Or with JSON output:\ndevforge snapshot .devforge/devforge.snapshot.json --json",
+      "expected_outcome": "init writes .devforge/devforge.snapshot.json and .devforge/devforge.project_config.json. snapshot command runs one cycle and prints result JSON. Subsequent runs use updated snapshot.",
+      "common_gotchas": [
+        "init in an interactive terminal triggers wizard prompts — use --no-prompt to skip in CI",
+        "The snapshot file must be manually updated after each cycle (copy result['snapshot'] back to disk) — no automatic write-back",
+        "If init --workspace is run without LLM API keys configured, topology classifier fails"
+      ]
+    },
+    {
+      "id": "P003",
+      "category": "basic",
+      "name": "Run snapshot cycle from arbitrary path",
+      "scenario": "Scripted or CI integration — run a cycle from a snapshot at a known file path.",
+      "how_to": "# CLI\ndevforge snapshot /path/to/my.snapshot.json\n\n# Python API\nfrom devforge.main import run_snapshot_cycle\nresult = run_snapshot_cycle('/path/to/my.snapshot.json')\nprint(result['events'][-1]['event_type'])  # 'cycle_completed'",
+      "expected_outcome": "One full orchestration cycle executes against the snapshot. Returns dict with cycle_id, dispatches, results, events, runtime context, and updated snapshot dict.",
+      "common_gotchas": [
+        "The return dict['snapshot'] is the updated snapshot — callers are responsible for writing it back to disk if they want persistence",
+        "Without --persistence-root, no SQLite database is written — events exist only in the return dict",
+        "Snapshot must contain at least one work package in 'ready' status or the cycle will produce 0 dispatches"
+      ]
+    },
+    {
+      "id": "P004",
+      "category": "config",
+      "name": "Apply project config overrides per cycle",
+      "scenario": "Override LLM provider, model, knowledge focus, or context pull budget for a specific project without modifying the snapshot itself.",
+      "how_to": "# CLI\ndevforge snapshot my.snapshot.json --project-config my.project_config.json\n\n# project_config.json structure:\n{\n  \"projects\": {\n    \"my-project-id\": {\n      \"llm_preferences\": {\n        \"provider\": \"openrouter\",\n        \"planning_model\": \"openai/gpt-5.4-mini\",\n        \"retry_model\": \"google/gemini-2.5-flash\"\n      },\n      \"knowledge_preferences\": {\n        \"preferred_ids\": [\"phase.testing\"],\n        \"excluded_ids\": [\"phase.analysis_design\"]\n      },\n      \"pull_policy_overrides\": [\n        {\"executor\": \"codex\", \"mode\": \"structured\", \"budget\": 8000}\n      ]\n    }\n  }\n}",
+      "expected_outcome": "Config is merged onto snapshot before cycle. LLM calls use the specified provider/models. Knowledge selection respects preferred/excluded IDs. Context pull respects budget limits. Dispatch metadata includes the applied pull strategy.",
+      "common_gotchas": [
+        "project_id in config must exactly match project.project_id in the snapshot JSON",
+        "Config is not persisted back to snapshot — must be re-applied on every cycle invocation",
+        "llm_preferences without allow_live=true will still use mock client by default — set allow_live in llm.yaml to enable live calls"
+      ]
+    },
+    {
+      "id": "P005",
+      "category": "config",
+      "name": "Enable durable persistence for cycle resume",
+      "scenario": "Long-running orchestration where cycles may be interrupted — enable SQLite persistence so subsequent cycles resume from the last verified state.",
+      "how_to": "# CLI\ndevforge snapshot .devforge/devforge.snapshot.json --persistence-root .devforge\n\n# Python API\nfrom devforge.main import run_snapshot_cycle\nresult = run_snapshot_cycle(\n    '.devforge/devforge.snapshot.json',\n    persistence_root='.devforge'\n)\n\n# Persistence layout written to .devforge/:\n# workspace.sqlite3    — snapshot + event store\n# events.jsonl         — lightweight JSONL event log\n# memory/             — JSON memory store\n# artifacts/          — executor output files",
+      "expected_outcome": "SQLite database and JSONL event log created/appended under .devforge/. Subsequent cycles with same persistence_root can resume from stored snapshot.",
+      "common_gotchas": [
+        "The snapshot file on disk still needs to be updated manually — persistence_root controls the event/artifact stores but does not replace the snapshot file",
+        "SQLite database grows unbounded — no automatic pruning; plan for periodic cleanup in long-running projects",
+        "build_local_workspace_persistence creates directories automatically — no pre-mkdir needed"
+      ]
+    },
+    {
+      "id": "P006",
+      "category": "config",
+      "name": "Configure LLM provider via llm.yaml",
+      "scenario": "Set global LLM provider and model preferences for all cycles, including enabling live API calls.",
+      "how_to": "# llm.yaml at project root:\nprovider: openrouter\nmodel: anthropic/claude-sonnet-4-5\nallow_live: true\napi_key_env: OPENROUTER_API_KEY\n\n# Multiple providers:\nconcept_provider: openrouter\nplanning_provider: google\nretry_provider: google\nconcept_model: anthropic/claude-sonnet-4-5\nplanning_model: google/gemini-2.5-flash\nretry_model: google/gemini-2.5-flash",
+      "expected_outcome": "load_llm_config() discovers llm.yaml from project root. build_task_llm_client() routes LLM tasks to specified provider/model. Without allow_live: true, MockLLMClient is used regardless of other settings.",
+      "common_gotchas": [
+        "allow_live must be explicitly set to true — default is offline/mock mode to prevent accidental API charges",
+        "API keys must be in environment variables referenced by the config (OPENROUTER_API_KEY, GOOGLE_API_KEY)",
+        "Per-project llm_preferences in project_config.json override llm.yaml settings for that project"
+      ]
+    },
+    {
+      "id": "P007",
+      "category": "extension",
+      "name": "Implement a custom executor adapter",
+      "scenario": "Adding a new AI CLI tool (e.g., aider, cursor, a custom script) as a first-class executor available for work package routing.",
+      "how_to": "from devforge.executors.adapters import BaseExecutorAdapter\nfrom devforge.executors import register_executor_adapter\nfrom devforge.state import ExecutorResult\n\nclass AiderAdapter(BaseExecutorAdapter):\n    def __init__(self):\n        super().__init__(\n            name='aider',\n            supported_phases=('implementation', 'testing'),\n            supported_roles=('software_engineer', 'qa_engineer')\n        )\n\n    def normalize_result(self, raw_result):\n        return ExecutorResult(\n            work_package_id=raw_result.get('work_package_id', ''),\n            status='completed' if raw_result.get('exit_code') == 0 else 'failed',\n            summary=raw_result.get('output', ''),\n            findings=[],\n            artifacts_created=[],\n            handoff_notes=[]\n        )\n\nregister_executor_adapter(AiderAdapter())",
+      "expected_outcome": "Custom adapter appears in EXECUTOR_REGISTRY under key 'aider'. Work packages with executor='aider' are dispatched to AiderAdapter.dispatch(). devforge doctor can be extended to include aider readiness check.",
+      "common_gotchas": [
+        "BaseExecutorAdapter.submit() uses stub transport by default — override _use_subprocess_transport() or _run_subprocess_request() to enable real subprocess execution",
+        "normalize_result() must return a valid ExecutorResult dataclass — check state/acceptance.py for required fields",
+        "register_executor_adapter() must be called before run_cycle() — typically at module import time or in a startup hook"
+      ]
+    },
+    {
+      "id": "P008",
+      "category": "extension",
+      "name": "Add custom knowledge documents to the registry",
+      "scenario": "Inject domain-specific guidance (e.g., company coding standards, security policies, deployment playbooks) into executor payloads for specific phases or archetypes.",
+      "how_to": "from devforge.knowledge import KNOWLEDGE_REGISTRY, KnowledgeDocument\n\ncustom_doc = KnowledgeDocument(\n    doc_id='domain.fintech',\n    title='Fintech Domain Knowledge',\n    content='## Compliance\\n- PCI-DSS requirements...\\n',\n    tags=['fintech', 'compliance', 'security'],\n    applicable_phases=['analysis_design', 'implementation'],\n    applicable_archetypes=['fintech', 'banking']\n)\nKNOWLEDGE_REGISTRY['domain.fintech'] = custom_doc\n\n# In project_config.json:\n{\n  \"projects\": {\n    \"my-project\": {\n      \"knowledge_preferences\": {\n        \"preferred_ids\": [\"domain.fintech\"]\n      }\n    }\n  }\n}",
+      "expected_outcome": "Custom knowledge doc is included in executor payloads for matching phases/archetypes. result['runtime']['selected_knowledge'] includes 'domain.fintech'. Executor receives formatted knowledge in payload['knowledge'] field.",
+      "common_gotchas": [
+        "KNOWLEDGE_REGISTRY is a global dict — modifications affect all cycles in the same process",
+        "knowledge_preferences.preferred_ids forces inclusion; excluded_ids forces exclusion; selection heuristics run for everything else",
+        "Large knowledge documents increase prompt token count — check payload size against EXECUTOR_CAPABILITIES.max_package_tokens"
+      ]
+    },
+    {
+      "id": "P009",
+      "category": "diagnostic",
+      "name": "Check executor readiness before running cycles",
+      "scenario": "Verify that local AI CLI tools (codex, claude, python) are installed, on PATH, and responding correctly before submitting real work.",
+      "how_to": "# CLI\ndevforge doctor\ndevforge doctor --json\n\n# Python API\nfrom devforge.main import run_executor_doctor\nresult = run_executor_doctor(cwd='/my/project')\nfor check in result['checks']:\n    print(f\"{check['executor']}: {check['status']} — {check['summary']}\")\n    if check['status'] != 'ok':\n        print(f\"  Details: {check['details']}\")",
+      "expected_outcome": "Returns per-executor check results with status: 'ok' | 'blocked' | 'missing'. Blocked executors (e.g., 'codex network path is blocked') can still run in offline/stub mode. Missing executors require installation before live dispatch.",
+      "common_gotchas": [
+        "doctor results reflect the current terminal environment — PATH and credentials may differ in CI",
+        "'blocked' status for codex often means network is restricted in sandbox environments — stub mode still works",
+        "'Not logged in' for claude means claude auth is needed — run 'claude' interactively first"
+      ]
+    },
+    {
+      "id": "P010",
+      "category": "diagnostic",
+      "name": "Use the interactive REPL for iterative cycle development",
+      "scenario": "Iteratively running cycles with manual inspection and modification between each step, without re-running the full CLI each time.",
+      "how_to": "# CLI\ndevforge repl\n\n# Inside REPL:\n# - View current session state\n# - Trigger next cycle\n# - Inspect work package statuses\n# - Modify snapshot between cycles\n# - Exit with Ctrl+D or 'exit'",
+      "expected_outcome": "Interactive REPL session maintains SessionState across cycle invocations. persist_session_bundle() can save the session state for later continuation. Useful for debugging cycle behavior or manually steering work package routing.",
+      "common_gotchas": [
+        "REPL state is session-local — not persisted by default without calling persist_session_bundle()",
+        "REPL is designed for human interaction — not suitable for scripted/CI use (use run_snapshot_cycle instead)",
+        "repl command requires a snapshot to exist in .devforge/ — run 'devforge init' first"
+      ]
+    },
+    {
+      "id": "P011",
+      "category": "basic",
+      "name": "Inspect cycle events for audit and debugging",
+      "scenario": "Trace what happened during a cycle — which work packages were selected, dispatched, and how they terminated.",
+      "how_to": "from devforge.main import run_fixture_cycle\nresult = run_fixture_cycle('game_project')\n\n# Event stream\nfor event in result['events']:\n    print(event['event_type'], event.get('payload', {}).get('work_package_id'))\n\n# Key event types:\n# - cycle_started\n# - work_package_dispatched\n# - work_package_completed\n# - work_package_failed\n# - cycle_completed",
+      "expected_outcome": "events list contains ordered dict records. Last event is 'cycle_completed'. Each dispatch event includes execution_ref (cycle_id, work_package_id, executor, execution_id) for cross-referencing with dispatch metadata.",
+      "common_gotchas": [
+        "Events in result['events'] are in-memory only — use --persistence-root to write them to JSONL/SQLite for cross-cycle analysis",
+        "Event payload shapes vary by event_type — no typed event schema is documented; use test_graph_runner.py assertions as reference",
+        "cycle_id is deterministic ('cycle-0001') in stub mode — use persistence_root to get unique IDs in production"
+      ]
+    },
+    {
+      "id": "P012",
+      "category": "extension",
+      "name": "Add a new meta-graph node",
+      "scenario": "Extending the orchestration kernel with a new processing step (e.g., a code quality check node) that runs between planning and dispatch.",
+      "how_to": "# 1. Define node function in graph/nodes.py:\nfrom devforge.graph.runtime_state import RuntimeState\n\ndef my_quality_check_node(state: RuntimeState, **kwargs) -> RuntimeState:\n    # Mutate state as needed\n    state.my_quality_score = compute_quality(state)\n    return state\n\n# 2. Add field to RuntimeState:\n@dataclass\nclass RuntimeState:\n    ...existing fields...\n    my_quality_score: float | None = None\n\n# 3. Register in META_GRAPH_NODES (skeleton.py)\n# 4. Wire into StateGraph in langgraph_builder.py\n# 5. Add transition logic in transitions.py if needed",
+      "expected_outcome": "New node executes in the correct position in the meta-graph. RuntimeState carries the new field through subsequent nodes. Tests using MockLLMClient and fixture snapshots pass without live network calls.",
+      "common_gotchas": [
+        "Node functions must accept **kwargs for forward compatibility with additional context arguments",
+        "RuntimeState is not frozen — direct attribute mutation is the convention, not copy-on-write",
+        "META_GRAPH_NODES tuple order does not directly control execution order — StateGraph edges in langgraph_builder.py control actual routing"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "databases": [
+    {
+      "type": "sqlite",
+      "path": ".devforge/workspace.sqlite3",
+      "usage": "Dual-purpose snapshot store (snapshots table with latest + per-cycle history) and event store (events table for append-only orchestration log); created by build_local_workspace_persistence()",
+      "implementation_class": "SQLiteSnapshotStore, SQLiteEventStore",
+      "source_file": "src/devforge/persistence/sqlite_store.py"
+    },
+    {
+      "type": "json_files",
+      "path": ".devforge/memory/",
+      "usage": "Key/value memory store for persisted planning context (concept briefs, specialized knowledge, acceptance goals) organized by namespace/key as individual JSON files",
+      "implementation_class": "JsonMemoryStore",
+      "source_file": "src/devforge/persistence/json_memory_store.py"
+    }
+  ],
+  "caches": [],
+  "auth": null,
+  "storage": [
+    {
+      "type": "filesystem",
+      "path": ".devforge/artifacts/",
+      "usage": "Text artifact store for executor output artifacts, runtime context snapshots (specialized_knowledge.json, concept_decision.json, node_knowledge_packet.json, concept_brief.md, acceptance_goals.json) written per-project and per-cycle",
+      "implementation_class": "FileArtifactStore",
+      "source_file": "src/devforge/persistence/file_artifact_store.py"
+    },
+    {
+      "type": "json_file",
+      "path": ".devforge/devforge.snapshot.json",
+      "usage": "Primary mutable workspace snapshot: the single source of truth for all initiative, project, work package, seam, and executor policy state; read and written by devforge snapshot command",
+      "source_file": "src/devforge/main.py"
+    },
+    {
+      "type": "json_file",
+      "path": ".devforge/devforge.project_config.json",
+      "usage": "Per-project configuration overlay: llm_preferences, knowledge_preferences, pull_policy_overrides applied to snapshot before each cycle",
+      "implementation_class": "load_project_config, apply_project_config",
+      "source_file": "src/devforge/config/project_config.py"
+    },
+    {
+      "type": "jsonl_file",
+      "path": ".devforge/events.jsonl",
+      "usage": "Lightweight alternative append-only event log (JSONL format) used when SQLite persistence is not configured",
+      "implementation_class": "JsonlEventStore",
+      "source_file": "src/devforge/persistence/jsonl_event_store.py"
+    }
+  ],
+  "background_jobs": [],
+  "message_queues": [],
+  "web_servers": [],
+  "external_apis": [
+    {
+      "name": "OpenRouter",
+      "base_url": "https://openrouter.ai/api/v1",
+      "auth": "OPENROUTER_API_KEY env var",
+      "usage": "LLM routing over chat-completions API for all planning decisions (concept collection, workset planning, retry routing, design generation)",
+      "implementation_class": "OpenRouterClient",
+      "source_file": "src/devforge/llm/openrouter.py"
+    },
+    {
+      "name": "Google AI (Gemini)",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "auth": "GOOGLE_API_KEY or GEMINI_API_KEY env var",
+      "usage": "Gemini LLM via generateContent API; default live provider in default_live_llm_preferences() with gemini-3.1-pro-preview",
+      "implementation_class": "GoogleGenAIClient",
+      "source_file": "src/devforge/llm/google.py"
+    },
+    {
+      "name": "Brave Search",
+      "base_url": "https://api.search.brave.com/res/v1",
+      "auth": "BRAVE_API_KEY env var",
+      "usage": "Web search for market research and competitive analysis during tool-enhanced concept collection nodes",
+      "implementation_class": "BraveSearchClient",
+      "source_file": "src/devforge/tools/brave_search.py"
+    },
+    {
+      "name": "FAL (fal.ai)",
+      "base_url": "https://fal.run",
+      "auth": "FAL_KEY env var",
+      "usage": "Flux/SDXL image generation for UI mockups and design artifacts in product design and acceptance stages",
+      "implementation_class": "FalImageClient",
+      "source_file": "src/devforge/tools/fal_image.py"
+    },
+    {
+      "name": "Google Stitch UI",
+      "base_url": "https://stitch.withgoogle.com",
+      "auth": "OAuth or API key (MCP or HTTP mode)",
+      "usage": "AI-driven UI prototype generation; used in product design (concept mockups) and acceptance (visual reference) stages",
+      "implementation_class": "StitchClient",
+      "source_file": "src/devforge/tools/stitch_ui.py"
+    }
+  ],
+  "subprocess_executors": [
+    {
+      "name": "claude_code",
+      "binary": "claude",
+      "protocol": "CLI --print --output-format json <prompt>",
+      "capability": {
+        "context_window": 200000,
+        "max_package_tokens": 50000,
+        "granularity": "coarse",
+        "max_concurrent": 3,
+        "supported_phases": ["concept_collect", "analysis_design", "implementation", "testing", "acceptance"]
+      },
+      "command_builder": "build_claude_code_command()",
+      "source_file": "src/devforge/executors/subprocess_transport.py"
+    },
+    {
+      "name": "codex",
+      "binary": "codex",
+      "protocol": "CLI exec --full-auto --cd <working_dir> <prompt>",
+      "capability": {
+        "context_window": 100000,
+        "max_package_tokens": 15000,
+        "granularity": "fine",
+        "max_concurrent": 5,
+        "supported_phases": ["analysis_design", "implementation", "testing"]
+      },
+      "command_builder": "build_codex_command()",
+      "source_file": "src/devforge/executors/subprocess_transport.py"
+    },
+    {
+      "name": "python_local",
+      "binary": "python",
+      "protocol": "-m devforge.executors.local_runner <json_request>",
+      "capability": {
+        "context_window": 1000000,
+        "max_package_tokens": 100000,
+        "granularity": "any",
+        "max_concurrent": 10,
+        "supported_phases": ["concept_collect", "acceptance", "requirement_patch"]
+      },
+      "command_builder": "build_python_local_command()",
+      "source_file": "src/devforge/executors/subprocess_transport.py",
+      "notes": "Deterministic fallback when live AI executors are unavailable; handles acceptance report generation locally"
+    },
+    {
+      "name": "cline",
+      "binary": "cline",
+      "protocol": "CLI (implementation-phase fine-grained tasks)",
+      "capability": {
+        "context_window": 100000,
+        "max_package_tokens": 20000,
+        "granularity": "fine",
+        "max_concurrent": 2,
+        "supported_phases": ["implementation", "testing"]
+      },
+      "source_file": "src/devforge/executors/capabilities.py"
+    },
+    {
+      "name": "opencode",
+      "binary": "opencode",
+      "protocol": "CLI (analysis_design phase tasks)",
+      "capability": {
+        "context_window": 100000,
+        "max_package_tokens": 20000,
+        "granularity": "fine",
+        "max_concurrent": 2,
+        "supported_phases": ["analysis_design"]
+      },
+      "source_file": "src/devforge/executors/capabilities.py"
+    }
+  ],
+  "http_transport": {
+    "library": "httpx",
+    "version": ">=0.28.1",
+    "usage": "All outbound LLM provider API calls (OpenRouter, Google GenAI); injected via HTTPTransport Protocol allowing StubHTTPTransport substitution in tests",
+    "source_file": "src/devforge/llm/httpx_transport.py"
+  },
+  "config_files": [
+    {
+      "path": "llm.yaml",
+      "usage": "Runtime LLM provider selection: provider (openrouter|google), model name, allow_live flag; loaded by load_llm_config() searching upward from project root"
+    },
+    {
+      "path": ".devforge/devforge.project_config.json",
+      "usage": "Per-project runtime preferences overlay written by devforge init and read by devforge snapshot"
+    },
+    {
+      "path": "pyproject.toml",
+      "usage": "Package manifest: Python >=3.12 constraint, langgraph and httpx dependencies, devforge CLI entry point"
+    }
+  ],
+  "test_infrastructure": {
+    "framework": "pytest >=8.0",
+    "test_count_approx": 256,
+    "test_files": 48,
+    "mock_strategy": "MockLLMClient returns deterministic structured responses; StubHTTPTransport replaces httpx; fixture JSON snapshots for e2e cycles",
+    "live_test_files": ["tests/test_live_llm.py", "tests/test_tools_live.py"],
+    "notes": "All 256 tests pass without network access using stub/mock injection; live tests are optional and marked separately"
+  }
+}

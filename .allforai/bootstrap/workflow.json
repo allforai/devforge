@@ -1,0 +1,103 @@
+{
+  "schema_version": "2.0",
+  "project": "devforge",
+  "goal": "逆向分析 — 从代码中提取产品概念、开发者画像、API 设计哲学和完整产物",
+  "planned_at": "2026-04-11T00:00:00Z",
+  "nodes": [
+    {
+      "id": "discover-devforge",
+      "capability": "discovery",
+      "goal": "对 DevForge 仓库做 SDK-focused 深度扫描，建立完整的模块清单、公开 API surface、测试覆盖情况和基础设施档案",
+      "exit_artifacts": [
+        ".allforai/bootstrap/source-summary.json",
+        ".allforai/bootstrap/file-catalog.json",
+        ".allforai/bootstrap/infrastructure-profile.json"
+      ],
+      "knowledge_refs": [
+        "capabilities/discovery.md"
+      ],
+      "consumers": ["reverse-concept-devforge"]
+    },
+    {
+      "id": "reverse-concept-devforge",
+      "capability": "reverse-concept",
+      "goal": "从代码结构、PLAN.md 和 README 逆向提取 DevForge 的 mission、developer personas、API 设计哲学、governance style 和冲突清单",
+      "exit_artifacts": [
+        ".allforai/product-concept/product-concept.json",
+        ".allforai/product-concept/role-value-map.json",
+        ".allforai/product-concept/product-mechanisms.json",
+        ".allforai/product-concept/concept-baseline.json",
+        ".allforai/product-concept/concept-conflicts.json"
+      ],
+      "knowledge_refs": [
+        "capabilities/reverse-concept.md",
+        "cross-phase-protocols.md",
+        "domains/sdk.md"
+      ],
+      "consumers": ["analyze-and-generate-devforge"]
+    },
+    {
+      "id": "analyze-and-generate-devforge",
+      "capability": "product-analysis",
+      "goal": "以 concept-baseline 为参照，对 DevForge 做 SDK-style 分析并生成结构化产物：API surface map、developer journey、usage patterns、文档规划",
+      "exit_artifacts": [
+        ".allforai/product-map/api-surface.json",
+        ".allforai/product-map/developer-personas.json",
+        ".allforai/product-map/developer-journey.json",
+        ".allforai/product-map/business-flows.json",
+        ".allforai/product-map/usage-patterns.json",
+        ".allforai/sdk-design/documentation-plan.json"
+      ],
+      "knowledge_refs": [
+        "capabilities/product-analysis.md",
+        "capabilities/generate-artifacts.md",
+        "domains/sdk.md",
+        "cross-phase-protocols.md"
+      ],
+      "consumers": []
+    }
+  ],
+  "transition_log": [
+    {
+      "node": "discover-devforge",
+      "status": "completed",
+      "started_at": "2026-04-11T00:10:00Z",
+      "completed_at": "2026-04-11T00:15:30Z",
+      "artifacts_created": [
+        ".allforai/bootstrap/source-summary.json",
+        ".allforai/bootstrap/file-catalog.json",
+        ".allforai/bootstrap/infrastructure-profile.json"
+      ],
+      "error": null
+    },
+    {
+      "node": "reverse-concept-devforge",
+      "status": "completed",
+      "started_at": "2026-04-11T00:16:00Z",
+      "completed_at": "2026-04-11T00:20:00Z",
+      "artifacts_created": [
+        ".allforai/product-concept/product-concept.json",
+        ".allforai/product-concept/role-value-map.json",
+        ".allforai/product-concept/product-mechanisms.json",
+        ".allforai/product-concept/concept-baseline.json",
+        ".allforai/product-concept/concept-conflicts.json"
+      ],
+      "error": null
+    },
+    {
+      "node": "analyze-and-generate-devforge",
+      "status": "completed",
+      "started_at": "2026-04-11T00:21:00Z",
+      "completed_at": "2026-04-11T00:28:00Z",
+      "artifacts_created": [
+        ".allforai/product-map/api-surface.json",
+        ".allforai/product-map/developer-personas.json",
+        ".allforai/product-map/developer-journey.json",
+        ".allforai/product-map/business-flows.json",
+        ".allforai/product-map/usage-patterns.json",
+        ".allforai/sdk-design/documentation-plan.json"
+      ],
+      "error": null
+    }
+  ]
+}

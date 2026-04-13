@@ -1,0 +1,12 @@
+{
+  "id": "update-engine-delegation",
+  "capability": "coding",
+  "goal": "Modify the file src/devforge/workflow/engine.py in /Users/aa/workspace/devforge.\n\nReplace ONLY the body of the run_one_cycle() function (lines 207-354) with delegation to the new graph module. Keep ALL other functions and imports unchanged.\n\nThe new run_one_cycle() body should be:\n```python\ndef run_one_cycle(root: Path) -> dict[str, Any]:\n    wf_id = active_workflow_id(root)\n    if wf_id is None:\n        return {'status': 'no_active_workflow', 'dispatched': []}\n    try:\n        manifest = read_manifest(root, wf_id)\n    except FileNotFoundError:\n        return {'status': 'manifest_missing', 'dispatched': []}\n    from devforge.workflow.graph import run_workflow_cycle\n    return run_workflow_cycle(root, wf_id, manifest)\n```\n\nDo NOT remove or modify any other function in the file (select_next_nodes, reconcile_artifacts, _load_knowledge, _dispatch_node, _write_run_log, _write_status_json, _now, _sync_index_status, etc.). They are imported by graph.py.\n\nDo NOT change the function signature: `run_one_cycle(root: Path) -> dict[str, Any]`.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": [
+    "create-graph-module"
+  ]
+}

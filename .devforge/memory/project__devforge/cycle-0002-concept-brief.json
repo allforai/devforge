@@ -1,0 +1,9 @@
+{
+  "namespace": "project/devforge",
+  "key": "cycle-0002-concept-brief",
+  "content": "# Concept Brief\n\nGoal: collect concept model for devforge\nPhase: analysis_design\n\n## Focus Areas\n- general\n- analysis_design\n- core\n- technical_architect\n\n## Discovery Questions\n- What is the primary user experience or outcome?\n- Which domains are core versus optional in the first iteration?\n\n## Rationale\ncollect concept inputs before detailed planning and execution\n\n## Notes\n- concept decision derived from project archetype and selected knowledge\n- focus areas limited for layered disclosure\n",
+  "metadata": {
+    "kind": "concept_brief",
+    "cycle_id": "cycle-0002"
+  }
+}

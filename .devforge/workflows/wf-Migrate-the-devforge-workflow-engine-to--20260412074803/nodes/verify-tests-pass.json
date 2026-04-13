@@ -1,0 +1,13 @@
+{
+  "id": "verify-tests-pass",
+  "capability": "testing",
+  "goal": "Run the test suite in /Users/aa/workspace/devforge to verify the LangGraph migration did not break anything.\n\nExecute: cd /Users/aa/workspace/devforge && uv run pytest tests/test_workflow_engine.py -q\n\nAll tests must pass. If any test fails, read the test file tests/test_workflow_engine.py and the implementation files src/devforge/workflow/graph.py and src/devforge/workflow/engine.py, diagnose the issue, fix it, and re-run until all tests pass.\n\nCommon issues to watch for:\n- The graph's dispatch_nodes_node must handle FileNotFoundError and subprocess.TimeoutExpired exactly like the original engine.py dispatch loop\n- The 'blocked' status path must call write_manifest and _write_status_json before returning\n- The finalize_failed path from select_nodes (no candidates, no running, exhausted nodes) must also write manifest/status/index\n- cycle_result values must match exactly: 'ok', 'all_complete', 'blocked', 'workflow_failed', 'awaiting_confirm'\n- The return dict keys must match: 'status', 'dispatched', optionally 'blocked_by', 'pending', 'running'\n- Planning node handling: when returncode==0 and mode=='planning', save pending_plan.json and set workflow_status='awaiting_confirm'\n- The dispatch loop early-return on MAX_ATTEMPTS must set cycle_result='workflow_failed' and return immediately",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": [
+    "create-graph-module",
+    "update-engine-delegation"
+  ]
+}

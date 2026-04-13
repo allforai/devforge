@@ -1,0 +1,609 @@
+{
+  "modules": [
+    {
+      "id": "M001",
+      "key_files": [
+        {
+          "path": "src/devforge/graph/builder.py",
+          "intent": "Implements run_cycle(), the primary SDK entry point that drives one full orchestration cycle: requirement patching, workset selection, concept collection, planning, graph validation, dispatch, and verification.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/graph/runtime_state.py",
+          "intent": "Defines RuntimeState dataclass: the mutable operational state passed between all graph nodes in a single cycle.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/graph/nodes.py",
+          "intent": "Pure node functions (project_scheduler_node, concept_collection_node, planning_and_shaping_node, graph_validation_node) that mutate RuntimeState and are composable into LangGraph graphs.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/graph/langgraph_builder.py",
+          "intent": "Builds the formal LangGraph StateGraph (build_meta_graph) wiring all nodes with conditional edges and requirement-patch branching.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/graph/skeleton.py",
+          "intent": "Declares META_GRAPH_NODES tuple and NEXT_STEP_BY_EVENT dict as the canonical node-name registry for the meta-graph.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/graph/transitions.py",
+          "intent": "next_step_for_state() resolves the next coarse meta-step from RuntimeState flags (termination, user input, patches, workset presence).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/graph/tool_enhanced_nodes.py",
+          "intent": "Extended node variants that inject tool-enriched context (Brave Search, Stitch UI) into planning and design decisions.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_graph_runner.py",
+          "intent": "Primary runtime integration tests: fixture cycles, dispatch assertions, execution ref shape, event sequence, and retry/fallback routing.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_e2e_orchestration.py",
+          "intent": "Cross-scenario convergence tests: acceptance pass terminates, acceptance fail triggers replan, design backloop, seam compliance, state consistency.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_e2e_game.py",
+          "intent": "End-to-end test using game_project fixture: verifies full cycle including knowledge selection, dispatch, and snapshot mutation.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M002",
+      "key_files": [
+        {
+          "path": "src/devforge/executors/base.py",
+          "intent": "Defines the ExecutorAdapter Protocol (supports_phase, supports_role, estimate, prepare_request, submit, dispatch, poll, cancel, normalize_result) plus ExecutorDispatch and SubmissionReceipt dataclasses.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/executors/__init__.py",
+          "intent": "Exports all adapters, registers them into EXECUTOR_REGISTRY at import time, and re-exports the full public surface.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/executors/adapters.py",
+          "intent": "Concrete adapter implementations: BaseExecutorAdapter, CodexAdapter (codex exec --full-auto), ClaudeCodeAdapter (claude --print --output-format json), PythonAdapter (local_runner), ClineAdapter, OpenCodeAdapter, TopologyClassifierAdapter.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/subprocess_transport.py",
+          "intent": "SubprocessTransport wraps subprocess.Popen with submit/poll/cancel lifecycle; build_claude_code_command, build_codex_command, build_python_local_command construct the CLI argv arrays.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/capabilities.py",
+          "intent": "EXECUTOR_CAPABILITIES registry maps executor names to ExecutorCapability (context_window, max_package_tokens, granularity, supported_phases, max_concurrent).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/payloads.py",
+          "intent": "format_executor_payload() builds the structured payload dict injected into each executor request, including knowledge packet, pull manifest, and style metadata.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/pull_policy.py",
+          "intent": "Defines PullPolicyRule and PULL_POLICY_RULES; resolve_pull_strategy() selects context pull mode/budget per executor+role combination.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/registry.py",
+          "intent": "EXECUTOR_REGISTRY dict and register_executor_adapter/get_executor_adapter functions for dynamic adapter lookup.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/granularity.py",
+          "intent": "Granularity control: validate_granularity, estimate_package_tokens, suggest_split, suggest_merge for capacity-aware work package sizing.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/local_runner.py",
+          "intent": "Pure-Python deterministic executor invoked via subprocess as a fallback when live AI executors are unavailable; handles acceptance report generation.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/executors/stubs.py",
+          "intent": "Stub adapter implementations used in test mode to simulate executor responses without calling real CLI tools.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_executor_payloads.py",
+          "intent": "Tests format_executor_payload, pull strategy resolution, and runtime context injection shape for all executor types.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_subprocess_transport.py",
+          "intent": "Tests SubprocessTransport submit/poll/cancel lifecycle and command builder functions.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_executor_capabilities.py",
+          "intent": "Tests EXECUTOR_CAPABILITIES entries and get_executor_capability fallback behavior.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_local_runner.py",
+          "intent": "Tests local_runner acceptance report generation and deterministic execution path.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M003",
+      "key_files": [
+        {
+          "path": "src/devforge/state/__init__.py",
+          "intent": "Re-exports all domain model types and codec functions as the single import surface for the state layer.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/state/work_package.py",
+          "intent": "WorkPackage dataclass: bounded execution unit with status, executor, retry state, findings, deliverables, and dependency tracking.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/state/project.py",
+          "intent": "ProjectState dataclass: project phases, domains, roles, seams, work package IDs, and per-project LLM/knowledge/pull preferences.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/state/initiative.py",
+          "intent": "InitiativeState dataclass: top-level initiative owning multiple projects with shared concepts, contracts, and requirement event IDs.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/state/workspace.py",
+          "intent": "WorkspaceState and QueueState dataclasses: top-level workspace with global scheduler queues and registry references.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/state/codec.py",
+          "intent": "decode_snapshot/encode_snapshot: converts raw JSON dicts to/from typed domain model dataclasses, the single serialization boundary.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/state/seam.py",
+          "intent": "SeamState and SeamRisk dataclasses: cross-domain interface contract tracking with risk level and verification status.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/state/executor_policy.py",
+          "intent": "ExecutorPolicy dataclass with resolve() method: per-project routing rules that override work package executor assignments by domain/phase/role.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/state/design.py",
+          "intent": "ProductDesign, DomainSpec, UserFlow, ClosureItem dataclasses for structured product design artifacts.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/state/acceptance.py",
+          "intent": "AcceptanceVerdict, GoalCheckResult, GapItem, RemediationPackage, ClosureDensityScore dataclasses for acceptance evaluation results.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/state/node_revision.py",
+          "intent": "NodeRevision, NodeProgress, NodeLineage, NodeScope: evolving state node tracking for fine-grained work sub-items.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/fixtures/game_project.json",
+          "intent": "Sample game project snapshot fixture: canonical example of a complete WorkspaceState document used in e2e and integration tests.",
+          "type": "fixture"
+        },
+        {
+          "path": "src/devforge/fixtures/ecommerce_project.json",
+          "intent": "Sample e-commerce project snapshot fixture: second canonical WorkspaceState example covering a different project archetype.",
+          "type": "fixture"
+        },
+        {
+          "path": "tests/test_state_and_roles.py",
+          "intent": "Tests WorkPackage, ProjectState, InitiativeState field defaults, status transitions, and role registry lookups.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_state_codec.py",
+          "intent": "Tests decode_snapshot/encode_snapshot round-trip fidelity for all entity types.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M004",
+      "key_files": [
+        {
+          "path": "src/devforge/planning/__init__.py",
+          "intent": "Re-exports all planning decision functions as the single import surface for the planning layer.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/planning/concept_decision.py",
+          "intent": "llm_concept_collection_decider(): LLM-backed structured decision for which knowledge areas and questions to focus on in the current phase.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/planning_decision.py",
+          "intent": "llm_planning_decider(): LLM-backed workset selection decision that confirms or reorders the scheduler-proposed work packages.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/retry_decision.py",
+          "intent": "decide_retry_action() and llm_retry_decider(): LLM-backed retry routing (switch_executor, requeue, block, replan, final_fail) after executor failure.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/retry_policy.py",
+          "intent": "resolve_retry_action(): rule-based retry policy (attempt count, executor availability) as guardrail before the LLM retry decider.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/graph_patch.py",
+          "intent": "apply_requirement_events(), apply_patch_operations(), apply_project_split(), freeze_seam(), verify_seam(): mutation operations applied to the snapshot JSON structure.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/design_generator.py",
+          "intent": "generate_product_design(): LLM-backed ProductDesign generation from initiative/project context.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/design_validator.py",
+          "intent": "validate_design(): structural and semantic validation of ProductDesign (circular domain deps, missing flows, domain coverage).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/closure_expander.py",
+          "intent": "expand_closures(): enumerates ring-0 and ring-1 task closures from a ProductDesign for coverage ratio computation.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/gap_analyzer.py",
+          "intent": "analyze_gaps(): LLM-backed gap attribution and remediation package generation when acceptance goals are not met.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/planning/acceptance.py",
+          "intent": "evaluate_acceptance(): LLM-backed acceptance verdict combining goal completion, closure density, and work package results.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_planning_decision.py",
+          "intent": "Tests llm_planning_decider with mock LLM: workset selection, phase assignment, and fallback behavior.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_retry_decision.py",
+          "intent": "Tests decide_retry_action routing across all retry actions including switch_executor and final_fail.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_design_nodes.py",
+          "intent": "Tests product_design_node, design_validation_node, closure_expansion_node as graph node functions.",
+          "type": "test"
+        },
+        {
+          "path": "tests/test_acceptance.py",
+          "intent": "Tests evaluate_acceptance verdict logic with passing and failing work package result sets.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M005",
+      "key_files": [
+        {
+          "path": "src/devforge/persistence/__init__.py",
+          "intent": "Re-exports all persistence classes and factory functions as the single import surface.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/persistence/store.py",
+          "intent": "Protocol definitions for SnapshotStore, EventStore, ArtifactStore, and MemoryStore: the abstract persistence contracts.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/persistence/context.py",
+          "intent": "WorkspacePersistence dataclass and build_local_workspace_persistence(): assembles SQLite + filesystem persistence layout under .devforge/.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/persistence/sqlite_store.py",
+          "intent": "SQLiteSnapshotStore and SQLiteEventStore: durable SQLite-backed snapshot (latest + history) and event log.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/persistence/sqlite_schema.py",
+          "intent": "sqlite_schema() returns DDL statements for snapshots and events tables; SQLITE_SCHEMA_STATEMENTS constant.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/persistence/jsonl_event_store.py",
+          "intent": "JsonlEventStore: lightweight append-only JSONL event log as alternative to SQLite for low-overhead deployments.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/persistence/json_store.py",
+          "intent": "JsonStore: file-based snapshot store that reads/writes JSON files from a directory (used for fixture loading).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/persistence/json_memory_store.py",
+          "intent": "JsonMemoryStore: JSON file-based memory store for persisted planning context (concept briefs, specialized knowledge).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/persistence/file_artifact_store.py",
+          "intent": "FileArtifactStore: filesystem-backed text artifact store writing to .devforge/artifacts/ for executor outputs and runtime context.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_persistence.py",
+          "intent": "Tests all four store implementations against real filesystem/SQLite: round-trip snapshot, event append, artifact write, memory save.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M006",
+      "key_files": [
+        {
+          "path": "src/devforge/llm/base.py",
+          "intent": "LLMClient Protocol: provider-agnostic interface with generate_structured(StructuredGenerationRequest) -> StructuredGenerationResponse.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/llm/__init__.py",
+          "intent": "Re-exports all LLM client types, factory functions, and transport classes as the single LLM import surface.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/llm/openrouter.py",
+          "intent": "OpenRouterClient: implements LLMClient over OpenRouter's chat-completions API using httpx transport.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/google.py",
+          "intent": "GoogleGenAIClient: implements LLMClient over Google's Gemini generateContent API using httpx transport.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/factory.py",
+          "intent": "build_llm_client() and build_llm_client_from_config(): factory functions that instantiate the correct provider client from preferences dict.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/router.py",
+          "intent": "build_task_llm_client(): routes LLM task requests to the appropriate provider based on llm_preferences + llm.yaml config.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/config_loader.py",
+          "intent": "load_llm_config(): discovers and parses llm.yaml from the project root for provider/model preferences.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/httpx_transport.py",
+          "intent": "HttpxTransport: production HTTP transport using httpx for all LLM provider API calls.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/llm/mock.py",
+          "intent": "MockLLMClient: deterministic test double that returns structured stub responses without network calls.",
+          "type": "implementation"
+        },
+        {
+          "path": "llm.yaml",
+          "intent": "Example LLM provider configuration file specifying provider, model, and allow_live flag for runtime LLM routing.",
+          "type": "config"
+        },
+        {
+          "path": "tests/test_llm_router.py",
+          "intent": "Tests build_task_llm_client routing logic across provider preferences and fallback behavior.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M007",
+      "key_files": [
+        {
+          "path": "src/devforge/tools/__init__.py",
+          "intent": "Re-exports all external tool client types as the single tools import surface.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/tools/brave_search.py",
+          "intent": "BraveSearchClient: calls Brave Search API (BRAVE_API_KEY) for market research and competitive analysis during concept collection.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/tools/fal_image.py",
+          "intent": "FalImageClient: calls fal.ai API (FAL_KEY) for Flux/SDXL image generation used in UI mockups and design artifacts.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/tools/stitch_ui.py",
+          "intent": "StitchClient: calls Google Stitch API for AI-driven UI prototype generation in HTTP or MCP mode.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/tools/xv_validator.py",
+          "intent": "XVValidator: cross-model validation that submits the same prompt to multiple LLM providers and compares structured outputs.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_tools.py",
+          "intent": "Tests all tool client stubs and result model shapes (BraveSearchClient, FalImageClient, StitchClient, XVValidator).",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M008",
+      "key_files": [
+        {
+          "path": "src/devforge/scheduler/workset_selector.py",
+          "intent": "select_workset(): priority-sorted, dependency-filtered selection of up to N ready WorkPackages for batch dispatch.",
+          "type": "implementation"
+        }
+      ]
+    },
+    {
+      "id": "M009",
+      "key_files": [
+        {
+          "path": "src/devforge/context/broker.py",
+          "intent": "ContextBroker: resolves project://, artifact://, memory:// URI refs by dispatching to snapshot, artifact_store, or memory_store; supports preview_many() and resolve_many().",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/context/models.py",
+          "intent": "ContextPullManifest and ResolvedContext dataclasses: represent the ref list and resolved content injected into executor payloads.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_context_broker.py",
+          "intent": "Tests ContextBroker ref resolution for all URI schemes and preview modes against mock stores.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M010",
+      "key_files": [
+        {
+          "path": "src/devforge/knowledge/__init__.py",
+          "intent": "Re-exports KNOWLEDGE_REGISTRY, KnowledgeDocument, NodeKnowledgePacket, and selection/specializer functions.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/knowledge/registry.py",
+          "intent": "KNOWLEDGE_REGISTRY: maps knowledge IDs (domain.gaming, phase.implementation) to KnowledgeDocument instances.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/knowledge/selectors.py",
+          "intent": "select_knowledge_for_context(): heuristic selection of relevant knowledge IDs given project archetype, phase, and role.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/knowledge/specializer.py",
+          "intent": "build_specialized_knowledge(): assembles a structured focused knowledge dict from selected document IDs for injection into executor payloads.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/knowledge/packets.py",
+          "intent": "build_node_knowledge_packet(): creates the NodeKnowledgePacket struct with focus, deep_refs, and phase-specific guidance for a graph node.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_knowledge.py",
+          "intent": "Tests knowledge selection, specializer output shape, and packet assembly for multiple phase/role/domain combinations.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M011",
+      "key_files": [
+        {
+          "path": "src/devforge/roles/specs.py",
+          "intent": "RoleSpec dataclass with name, description, and executor_phase_affinity for each development role.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/roles/registry.py",
+          "intent": "ROLE_REGISTRY dict and get_role_spec() lookup for the six standard roles used across all projects.",
+          "type": "implementation"
+        }
+      ]
+    },
+    {
+      "id": "M012",
+      "key_files": [
+        {
+          "path": "src/devforge/seams/verifier.py",
+          "intent": "verify_seam_compliance(): checks SeamState interface contracts against executor work package outputs for integration risk reporting.",
+          "type": "implementation"
+        },
+        {
+          "path": "tests/test_seam_verifier.py",
+          "intent": "Tests seam compliance verification logic for satisfied and violated interface contracts.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M013",
+      "key_files": [
+        {
+          "path": "src/devforge/config/project_config.py",
+          "intent": "load_project_config(), apply_project_config(), maybe_apply_fixture_project_config(): reads devforge.project_config.json and overlays per-project preferences onto snapshots.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/fixtures/ecommerce_project.project_config.json",
+          "intent": "Example project config file for the e-commerce fixture showing llm_preferences, knowledge_preferences, and pull_policy_overrides structure.",
+          "type": "fixture"
+        },
+        {
+          "path": "tests/test_project_config.py",
+          "intent": "Tests project config loading, overlay application, and fixture config discovery.",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "id": "M014",
+      "key_files": [
+        {
+          "path": "src/devforge/topology.py",
+          "intent": "classify_workspace_candidates() uses an LLM to decide single_project vs workspace topology; WorkspaceCandidate and WorkspaceModelingDecision carry the decision.",
+          "type": "implementation"
+        }
+      ]
+    },
+    {
+      "id": "M015",
+      "key_files": [
+        {
+          "path": "src/devforge/main.py",
+          "intent": "CLI entrypoint (main) and public SDK functions: run_fixture_cycle, run_snapshot_cycle, initialize_project, run_executor_doctor; dispatches to subcommands init/snapshot/fixture/doctor.",
+          "type": "public_interface"
+        },
+        {
+          "path": "src/devforge/repl.py",
+          "intent": "Interactive REPL session: run_interactive_session() and persist_session_bundle() for conversational cycle continuation from the terminal.",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/session.py",
+          "intent": "SessionState and ViewState dataclasses for tracking active REPL session (project, phase, run IDs, mode).",
+          "type": "implementation"
+        },
+        {
+          "path": "src/devforge/onboarding.py",
+          "intent": "read_readme_excerpt(): extracts a README snippet used during workspace topology discovery.",
+          "type": "implementation"
+        },
+        {
+          "path": "pyproject.toml",
+          "intent": "Package metadata, Python 3.12 constraint, LangGraph/httpx dependencies, devforge CLI entry point, and pytest configuration.",
+          "type": "config"
+        },
+        {
+          "path": "tests/test_main_cli.py",
+          "intent": "Tests all CLI subcommands (init, snapshot, fixture, doctor) including guided preferences, workspace mode, and JSON output.",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

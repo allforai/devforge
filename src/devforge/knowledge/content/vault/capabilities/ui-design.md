@@ -1,0 +1,82 @@
+# UI Design Capability
+
+> Generate UI design specifications from product artifacts.
+> Internal execution is LLM-driven — design approach adapts to project type.
+
+## Goal
+
+Transform experience-map + product-map into concrete UI specifications:
+design tokens, per-screen layouts, component specs, and optional interactive previews.
+
+## What LLM Must Accomplish (not how)
+
+### Required Outputs
+
+| Output | What |
+|--------|------|
+| `ui-design-spec.md` | Per-screen specification: layout, components, states, interactions. Must contain a `screens[]` inventory with `screen_name` and `role` for each screen, followed by per-screen detail sections. |
+| `tokens.json` | Design tokens: color, typography, spacing, component, animation |
+
+### Optional Outputs
+
+| Output | When |
+|--------|------|
+| `preview/*.html` | Interactive HTML previews (if user wants visual validation) |
+| `art-direction.md` | For games or visually-driven products |
+| `interaction-spec.md` | For products with significant dynamic interactions (IM, collaborative tools, games). Covers: transition animations, gesture interactions (swipe-to-reply, long-press menus), real-time update patterns (typing indicators, live cursors), micro-interactions (message send animation, pull-to-refresh), loading/skeleton states with timing. |
+
+### Required Quality
+
+- Every screen from experience-map has a specification
+- Design tokens are binding — downstream implementation must consume them
+- State completeness: every screen shows all state variants
+- Consumer maturity: consumer products get production-grade spec, not wireframes
+- Prune coverage: every task where `feature-prune decisions[].included = true` must have at least one corresponding screen in the spec. Load `prune-tasks.json` before designing — tasks excluded by prune (`included = false`) must NOT get screens.
+
+## Methodology Guidance (not steps)
+
+- **Design tokens first**: Establish visual language before screen design
+- **Per-role previews**: Each role sees different screens — design separately
+- **State completeness**: Every screen includes all state variants in the spec
+- **Don't over-specify**: Describe intent and constraints, not pixel coordinates
+- **Component reuse**: Identify shared components across screens, define once
+
+## Specialization Guidance
+
+| Project Type | UI Design Differences |
+|-------------|----------------------|
+| Consumer mobile app | Mobile-first, touch targets, thumb zones, offline states |
+| Admin dashboard | Data density, table/form patterns, multi-action pages |
+| Game | Art direction replaces UI design; mood board, style guide, character design |
+| SDK/Library | Documentation design replaces UI design (Diátaxis framework) |
+| CLI | No UI design needed — skip entirely |
+
+## Knowledge References
+
+### Phase-Specific:
+- experience-map-schema.md: screen definitions and component specs to design from
+- consumer-maturity-patterns.md: consumer UX maturity requirements
+- product-design-theory.md §Phase-6: Design System, Atomic Design, WCAG, Gestalt
+
+## Downstream Consumers
+
+> Bootstrap reads this table to generate Context Pull sections for downstream node-specs.
+> `required` = subagent reports error if file missing; `optional` = warning + continue.
+
+| Artifact | Field Path | Consumer Capability | Required | Reason |
+|----------|------------|---------------------|----------|--------|
+| `ui-design-spec.md` | `screens[]` | product-verify | required | 动态验证按屏幕列表逐一检查 |
+| `ui-design-spec.md` | `screens[]`, component specs | ui-forge | required | UI 精修需要原始设计规格作为基线 |
+| `ui-design-spec.md` | `screens[]` | visual-verify | required | 截图对比需要设计规格作为参照 |
+| `tokens.json` | all tokens | translate (implement nodes) | required | 实现必须消费设计 token（颜色/字体/间距） |
+
+## Composition Hints
+
+### Single Node (default)
+Run after experience-map is complete.
+
+### Skip Entirely
+For backend-only projects, CLI tools, or when user explicitly skips.
+
+### Split by Role
+For apps with very different role UIs (e.g., consumer app + admin dashboard).

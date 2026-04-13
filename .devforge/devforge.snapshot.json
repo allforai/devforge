@@ -1,0 +1,221 @@
+{
+  "initiative": {
+    "initiative_id": "devforge-initiative",
+    "name": "devforge",
+    "goal": "Onboard an existing repository into DevForge orchestration.",
+    "status": "active",
+    "project_ids": [
+      "devforge"
+    ],
+    "shared_concepts": [],
+    "shared_contracts": [],
+    "initiative_memory_ref": "memory://initiative/devforge-initiative",
+    "global_acceptance_goals": [
+      "existing repository structure understood",
+      "initial DevForge work plan defined"
+    ],
+    "requirement_event_ids": [],
+    "scheduler_state": {}
+  },
+  "projects": [
+    {
+      "project_id": "devforge",
+      "initiative_id": "devforge-initiative",
+      "parent_project_id": null,
+      "name": "devforge",
+      "kind": "existing_repo",
+      "status": "active",
+      "current_phase": "acceptance",
+      "phases": [
+        "concept_collect",
+        "analysis_design",
+        "implementation",
+        "testing",
+        "acceptance",
+        "requirement_patch"
+      ],
+      "project_archetype": "general",
+      "domains": [
+        "core"
+      ],
+      "active_roles": [
+        "product_manager",
+        "execution_planner",
+        "technical_architect",
+        "software_engineer",
+        "qa_engineer",
+        "integration_owner"
+      ],
+      "concept_model_refs": [],
+      "contracts": [],
+      "pull_policy_overrides": [],
+      "llm_preferences": {},
+      "knowledge_preferences": {
+        "preferred_ids": [],
+        "excluded_ids": []
+      },
+      "executor_policy_ref": null,
+      "work_package_ids": [
+        "wp-repo-onboarding",
+        "wp-bootstrap-acceptance"
+      ],
+      "seam_ids": [],
+      "artifacts": {
+        "repo_paths": [
+          "."
+        ],
+        "docs": [
+          "README.md",
+          "docs"
+        ]
+      },
+      "project_memory_ref": "memory://project/devforge",
+      "assumptions": [],
+      "requirement_events": [],
+      "children": [],
+      "coordination_project": false,
+      "created_at": null,
+      "updated_at": null
+    }
+  ],
+  "work_packages": [
+    {
+      "work_package_id": "wp-repo-onboarding",
+      "initiative_id": "devforge-initiative",
+      "project_id": "devforge",
+      "phase": "analysis_design",
+      "domain": "core",
+      "role_id": "technical_architect",
+      "title": "Existing repository onboarding",
+      "goal": "Analyze the current repository, map its structure, and define the first DevForge work plan.",
+      "status": "failed",
+      "priority": 100,
+      "executor": "claude_code",
+      "fallback_executors": [
+        "claude_code"
+      ],
+      "inputs": [],
+      "deliverables": [
+        "docs/devforge/repository-map.md",
+        "docs/devforge/initial-work-plan.md"
+      ],
+      "constraints": [
+        "work from the existing repository structure",
+        "avoid broad refactors before repository mapping is complete"
+      ],
+      "acceptance_criteria": [
+        "major code areas identified",
+        "initial work packages proposed"
+      ],
+      "depends_on": [],
+      "blocks": [],
+      "related_seams": [],
+      "assumptions": [],
+      "artifacts_created": [],
+      "findings": [],
+      "handoff_notes": [
+        "WARNING: proceeding, even though we could not update PATH: Operation not permitted (os error 1)\n\nthread 'reqwest-internal-sync-runtime' (13701177) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\nthread '<unnamed>' (13701176) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/src/blocking/client.rs:1523:5:\nevent loop thread panicked\n\nthread 'main' (13701154) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opentelemetry-otlp-0.31.0/src/exporter/http/mod.rs:190:22:\ncalled `Result::unwrap()` on an `Err` value: Any { .. }\nCould not create otel exporter: panicked during initialization\n\nthread 'tokio-runtime-worker' (13701170) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nReading additional input from stdin...\nOpenAI Codex v0.118.0 (research preview)\n--------\nworkdir: /Users/aa/workspace/devforge\nmodel: gpt-5.4\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/aa/.codex/memories]\nreasoning effort: none\nreasoning summaries: none\nsession id: 019d610a-16c6-7df1-9297-5aaceaadd77d\n--------\nuser\nExecute analysis_design work with the current project-specific knowledge focus. Goal: Analyze the current repository, map its structure, and define the first DevForge work plan.\n2026-04-06T04:25:44.395412Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:25:44.395891Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:25:44.395905Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:25:44.396749Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:25:44.591123Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 2/5\n2026-04-06T04:25:44.975716Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 3/5\n2026-04-06T04:25:45.785509Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 4/5\n2026-04-06T04:25:47.319459Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 5/5\n2026-04-06T04:25:50.827421Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 1/5\nERROR: Reconnecting... 2/5\nERROR: Reconnecting... 3/5\nERROR: Reconnecting... 4/5\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:15.250143Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)",
+        "WARNING: proceeding, even though we could not update PATH: Operation not permitted (os error 1)\n\nthread 'reqwest-internal-sync-runtime' (13702019) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\nthread '<unnamed>' (13702018) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/src/blocking/client.rs:1523:5:\nevent loop thread panicked\n\nthread 'main' (13701996) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opentelemetry-otlp-0.31.0/src/exporter/http/mod.rs:190:22:\ncalled `Result::unwrap()` on an `Err` value: Any { .. }\nCould not create otel exporter: panicked during initialization\n\nthread 'tokio-runtime-worker' (13702009) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nReading additional input from stdin...\nOpenAI Codex v0.118.0 (research preview)\n--------\nworkdir: /Users/aa/workspace/devforge\nmodel: gpt-5.4\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/aa/.codex/memories]\nreasoning effort: none\nreasoning summaries: none\nsession id: 019d610a-9091-76f2-9166-20cbe7f6f7ea\n--------\nuser\nExecute analysis_design work with the current project-specific knowledge focus. Goal: Analyze the current repository, map its structure, and define the first DevForge work plan.\n2026-04-06T04:26:15.574568Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:26:15.575082Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:26:15.575098Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:26:15.576083Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:26:15.789934Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 2/5\n2026-04-06T04:26:16.231444Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 3/5\n2026-04-06T04:26:16.989263Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 4/5\n2026-04-06T04:26:18.639978Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:21.774821Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 1/5\nERROR: Reconnecting... 2/5\nERROR: Reconnecting... 3/5\nERROR: Reconnecting... 4/5\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:45.505382Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)",
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"duration_ms\":12,\"duration_api_ms\":0,\"num_turns\":1,\"result\":\"Not logged in · Please run /login\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"60a8d552-986e-466f-ad0e-100d5dc62677\",\"total_cost_usd\":0,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"cd353c89-e6d1-4666-820a-d9c005139ebb\"}"
+      ],
+      "attempt_count": 3,
+      "max_attempts": 3,
+      "created_at": null,
+      "updated_at": null,
+      "last_execution_ref": {
+        "cycle_id": "cycle-0003",
+        "work_package_id": "wp-repo-onboarding",
+        "executor": "claude_code",
+        "execution_id": "exec-d87fe37d"
+      },
+      "execution_history": [
+        {
+          "cycle_id": "cycle-0001",
+          "work_package_id": "wp-repo-onboarding",
+          "executor": "codex",
+          "execution_id": "exec-5983db1e"
+        },
+        {
+          "cycle_id": "cycle-0002",
+          "work_package_id": "wp-repo-onboarding",
+          "executor": "codex",
+          "execution_id": "exec-3c2b1224"
+        },
+        {
+          "cycle_id": "cycle-0003",
+          "work_package_id": "wp-repo-onboarding",
+          "executor": "claude_code",
+          "execution_id": "exec-d87fe37d"
+        }
+      ],
+      "retry_action": "final_fail",
+      "retry_reason": "attempt_limit_reached",
+      "retry_source": "guardrail_fallback",
+      "retry_confidence": 1.0,
+      "retry_notes": [
+        "semantic action 'requeue' not allowed by guardrail"
+      ]
+    },
+    {
+      "work_package_id": "wp-bootstrap-acceptance",
+      "initiative_id": "devforge-initiative",
+      "project_id": "devforge",
+      "phase": "acceptance",
+      "domain": "core",
+      "role_id": "integration_owner",
+      "title": "Close failed bootstrap attempt",
+      "goal": "Summarize why repository bootstrap could not complete with live executors and record the next external actions required.",
+      "status": "verified",
+      "priority": 95,
+      "executor": "python",
+      "fallback_executors": [],
+      "inputs": [
+        "wp-repo-onboarding"
+      ],
+      "deliverables": [
+        "docs/devforge/bootstrap-acceptance.md"
+      ],
+      "constraints": [
+        "base the closeout on captured executor evidence",
+        "avoid pretending bootstrap completed when external prerequisites are missing"
+      ],
+      "acceptance_criteria": [
+        "bootstrap blockers are captured in a local report",
+        "the report identifies the next external actions needed to retry bootstrap"
+      ],
+      "depends_on": [],
+      "blocks": [],
+      "related_seams": [],
+      "assumptions": [],
+      "artifacts_created": [],
+      "findings": [],
+      "handoff_notes": [
+        "WARNING: proceeding, even though we could not update PATH: Operation not permitted (os error 1)\n\nthread 'reqwest-internal-sync-runtime' (13701177) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\nthread '<unnamed>' (13701176) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/src/blocking/client.rs:1523:5:\nevent loop thread panicked\n\nthread 'main' (13701154) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opentelemetry-otlp-0.31.0/src/exporter/http/mod.rs:190:22:\ncalled `Result::unwrap()` on an `Err` value: Any { .. }\nCould not create otel exporter: panicked during initialization\n\nthread 'tokio-runtime-worker' (13701170) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nReading additional input from stdin...\nOpenAI Codex v0.118.0 (research preview)\n--------\nworkdir: /Users/aa/workspace/devforge\nmodel: gpt-5.4\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/aa/.codex/memories]\nreasoning effort: none\nreasoning summaries: none\nsession id: 019d610a-16c6-7df1-9297-5aaceaadd77d\n--------\nuser\nExecute analysis_design work with the current project-specific knowledge focus. Goal: Analyze the current repository, map its structure, and define the first DevForge work plan.\n2026-04-06T04:25:44.395412Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:25:44.395891Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:25:44.395905Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:25:44.396749Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:25:44.591123Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 2/5\n2026-04-06T04:25:44.975716Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 3/5\n2026-04-06T04:25:45.785509Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 4/5\n2026-04-06T04:25:47.319459Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 5/5\n2026-04-06T04:25:50.827421Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 1/5\nERROR: Reconnecting... 2/5\nERROR: Reconnecting... 3/5\nERROR: Reconnecting... 4/5\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:15.250143Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)",
+        "WARNING: proceeding, even though we could not update PATH: Operation not permitted (os error 1)\n\nthread 'reqwest-internal-sync-runtime' (13702019) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\nthread '<unnamed>' (13702018) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/reqwest-0.12.28/src/blocking/client.rs:1523:5:\nevent loop thread panicked\n\nthread 'main' (13701996) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/opentelemetry-otlp-0.31.0/src/exporter/http/mod.rs:190:22:\ncalled `Result::unwrap()` on an `Err` value: Any { .. }\nCould not create otel exporter: panicked during initialization\n\nthread 'tokio-runtime-worker' (13702009) panicked at /Users/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/system-configuration-0.6.1/src/dynamic_store.rs:154:1:\nAttempted to create a NULL object.\nReading additional input from stdin...\nOpenAI Codex v0.118.0 (research preview)\n--------\nworkdir: /Users/aa/workspace/devforge\nmodel: gpt-5.4\nprovider: openai\napproval: never\nsandbox: workspace-write [workdir, /tmp, $TMPDIR, /Users/aa/.codex/memories]\nreasoning effort: none\nreasoning summaries: none\nsession id: 019d610a-9091-76f2-9166-20cbe7f6f7ea\n--------\nuser\nExecute analysis_design work with the current project-specific knowledge focus. Goal: Analyze the current repository, map its structure, and define the first DevForge work plan.\n2026-04-06T04:26:15.574568Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:26:15.575082Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:26:15.575098Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\n2026-04-06T04:26:15.576083Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\n2026-04-06T04:26:15.789934Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 2/5\n2026-04-06T04:26:16.231444Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 3/5\n2026-04-06T04:26:16.989263Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 4/5\n2026-04-06T04:26:18.639978Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:21.774821Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: IO error: failed to lookup address information: nodename nor servname provided, or not known, url: wss://chatgpt.com/backend-api/codex/responses\nERROR: Reconnecting... 1/5\nERROR: Reconnecting... 2/5\nERROR: Reconnecting... 3/5\nERROR: Reconnecting... 4/5\nERROR: Reconnecting... 5/5\n2026-04-06T04:26:45.505382Z ERROR codex_core::codex: failed to record rollout items: failed to queue rollout items: channel closed\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)\nERROR: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses)",
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"duration_ms\":12,\"duration_api_ms\":0,\"num_turns\":1,\"result\":\"Not logged in · Please run /login\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"60a8d552-986e-466f-ad0e-100d5dc62677\",\"total_cost_usd\":0,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"cd353c89-e6d1-4666-820a-d9c005139ebb\"}",
+        "local acceptance report generated from executor evidence"
+      ],
+      "attempt_count": 1,
+      "max_attempts": 1,
+      "created_at": null,
+      "updated_at": null,
+      "last_execution_ref": {
+        "cycle_id": "cycle-0004",
+        "work_package_id": "wp-bootstrap-acceptance",
+        "executor": "python",
+        "execution_id": "exec-9cd80959"
+      },
+      "execution_history": [
+        {
+          "cycle_id": "cycle-0004",
+          "work_package_id": "wp-bootstrap-acceptance",
+          "executor": "python",
+          "execution_id": "exec-9cd80959"
+        }
+      ]
+    }
+  ],
+  "executor_policies": [],
+  "requirement_events": [],
+  "seams": []
+}

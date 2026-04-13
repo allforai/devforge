@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0",
+  "product_name": "devforge",
+  "mission": "Help tool-chain engineers and AI-workflow integrators orchestrate multi-project software development by providing a stateful LangGraph kernel that separates goal, role, and executor — keeping Python in control of planning while delegating bounded work to pluggable AI executors.",
+  "target_developers": [
+    {
+      "persona": "integrator",
+      "level": "beginner",
+      "primary_jtbd": "Bootstrap an existing repo into DevForge, run fixture cycles, and inspect structured orchestration results without understanding internal graph nodes.",
+      "success_criteria": "devforge init succeeds, devforge fixture game_project returns cycle_id + dispatch_count, devforge doctor shows ok status for at least one executor."
+    },
+    {
+      "persona": "extender",
+      "level": "intermediate",
+      "primary_jtbd": "Implement a custom ExecutorAdapter or tune per-project llm_preferences/pull_policy_overrides without modifying graph nodes.",
+      "success_criteria": "Custom adapter registered in EXECUTOR_REGISTRY satisfies ExecutorAdapter Protocol; project_config.json overlays applied without code changes."
+    },
+    {
+      "persona": "contributor",
+      "level": "advanced",
+      "primary_jtbd": "Add new meta-graph nodes, extend RuntimeState, or wire new planning decision chains while keeping existing test suite green.",
+      "success_criteria": "New node composes cleanly with existing nodes via RuntimeState dataclass; 256 tests continue to pass without live network calls."
+    }
+  ],
+  "core_capabilities": [
+    {
+      "id": "CAP001",
+      "name": "LangGraph orchestration kernel",
+      "jtbd": "Drive one full dev cycle (concept→plan→dispatch→verify→patch) as a deterministic state machine, not a chat loop.",
+      "evidence": [
+        "src/devforge/graph/builder.py:1 — run_cycle() is the primary SDK entry point",
+        "src/devforge/graph/runtime_state.py:10-53 — RuntimeState dataclass holds all cycle-level operational state with explicit typed fields",
+        "PLAN.md:6 — 'This engine is not a chat agent. It is a stateful development operating kernel.'"
+      ]
+    },
+    {
+      "id": "CAP002",
+      "name": "Role-driven work package dispatch",
+      "jtbd": "Route work packages through phase→role→executor resolution so orchestration is not tied to specific AI tools.",
+      "evidence": [
+        "src/devforge/roles/registry.py:7-88 — ROLE_REGISTRY defines 8 roles each with allowed_phases and preferred_executors",
+        "src/devforge/state/work_package.py:36 — WorkPackage.role_id + .executor fields enforce role→executor separation",
+        "PLAN.md:369 — 'phase -> role bundle -> work package -> executor'"
+      ]
+    },
+    {
+      "id": "CAP003",
+      "name": "Pluggable executor adapter layer",
+      "jtbd": "Swap between claude_code, codex, cline, opencode, and python_local without changing orchestration logic.",
+      "evidence": [
+        "src/devforge/executors/base.py:62-109 — ExecutorAdapter Protocol with 11 explicit methods (supports_phase, dispatch, poll, cancel, normalize_result, etc.)",
+        "src/devforge/executors/adapters.py — concrete adapters: ClaudeCodeAdapter, CodexAdapter, PythonAdapter, ClineAdapter, OpenCodeAdapter",
+        "src/devforge/executors/registry.py — EXECUTOR_REGISTRY dict + register_executor_adapter for dynamic lookup"
+      ]
+    },
+    {
+      "id": "CAP004",
+      "name": "Explicit work package lifecycle governance",
+      "jtbd": "Track and enforce multi-stage work lifecycle (proposed→ready→running→blocked/waiting_review→completed/verified/failed/deprecated) across concurrent packages.",
+      "evidence": [
+        "src/devforge/state/work_package.py:10-20 — WorkPackageStatus Literal defines 9 explicit statuses",
+        "src/devforge/planning/retry_policy.py:8-47 — resolve_retry_action() enforces attempt_count/max_attempts guardrail before retry routing",
+        "src/devforge/planning/retry_decision.py — llm_retry_decider routes to switch_executor/requeue/block/replan/final_fail"
+      ]
+    },
+    {
+      "id": "CAP005",
+      "name": "Seam and contract governance",
+      "jtbd": "Manage cross-project interface contracts as first-class objects with freeze/verify lifecycle to enable safe parallel implementation.",
+      "evidence": [
+        "src/devforge/state/seam.py — SeamState + SeamRisk dataclasses with status: draft/reviewing/frozen/implemented/verified/broken/deprecated",
+        "src/devforge/seams/verifier.py:46-144 — verify_seam_compliance() checks acceptance criteria coverage and deviation keywords",
+        "PLAN.md:424-445 — seam workflow: define→generate→review→freeze→implement→verify→integration test→patch"
+      ]
+    },
+    {
+      "id": "CAP006",
+      "name": "Incremental requirement patching",
+      "jtbd": "Absorb requirement changes as structured events that patch graph state incrementally, not reset it.",
+      "evidence": [
+        "src/devforge/planning/graph_patch.py — apply_requirement_events(), apply_patch_operations(), apply_project_split()",
+        "PLAN.md:421 — 'The default replanning mechanism should be graph patching, not full rewrite.'",
+        "src/devforge/state/work_package.py:57 — replan_required bool field on WorkPackage"
+      ]
+    },
+    {
+      "id": "CAP007",
+      "name": "Four-layer durable persistence",
+      "jtbd": "Resume orchestration after interruption without re-running completed work using SQLite snapshots, JSONL events, JSON memory, and filesystem artifacts.",
+      "evidence": [
+        "src/devforge/persistence/context.py — WorkspacePersistence dataclass assembles all four stores under .devforge/",
+        "src/devforge/persistence/sqlite_store.py — SQLiteSnapshotStore + SQLiteEventStore",
+        "PLAN.md:46-70 — persistence strategy defines state/event/artifact/memory as four separate layers"
+      ]
+    },
+    {
+      "id": "CAP008",
+      "name": "On-demand context pull with URI-based resolution",
+      "jtbd": "Inject only the relevant context slice into each executor payload using project://, artifact://, memory:// refs — avoiding prompt bloat.",
+      "evidence": [
+        "src/devforge/context/broker.py — ContextBroker resolves three URI schemes against live stores",
+        "src/devforge/executors/pull_policy.py — PullPolicyRule + resolve_pull_strategy() selects mode/budget per executor+role",
+        "src/devforge/executors/payloads.py — format_executor_payload() assembles knowledge packet + pull manifest + style metadata"
+      ]
+    },
+    {
+      "id": "CAP009",
+      "name": "Multi-project workspace with topology detection",
+      "jtbd": "Onboard monorepos or multi-repo workspaces and automatically classify whether sub-directories form one business project or independent projects.",
+      "evidence": [
+        "src/devforge/topology.py — classify_workspace_candidates() uses LLM to decide single_project vs workspace topology",
+        "src/devforge/main.py:193-217 — _discover_workspace_projects() scans WORKSPACE_PROJECT_MARKERS",
+        "src/devforge/main.py:22-34 — devforge init --workspace mode with LLM topology classification"
+      ]
+    }
+  ],
+  "api_philosophy": {
+    "primary": "Python owns orchestration, executor owns bounded work",
+    "evidence": [
+      "PLAN.md:15-16 — Design Principles 2-3: 'Let Python own orchestration and state transitions. Let executors own bounded analysis, design, implementation, and testing work.'",
+      "src/devforge/executors/base.py:62 — ExecutorAdapter Protocol enforces explicit contract: 11 named methods, no implicit conventions",
+      "src/devforge/graph/runtime_state.py:9-53 — RuntimeState uses explicit typed dataclass fields, not dynamic dict — Explicit over Implicit",
+      "src/devforge/config/project_config.py — layered config overlay (llm_preferences / knowledge_preferences / pull_policy_overrides) follows Progressive Disclosure: zero-config works, overrides available"
+    ],
+    "rationale": "DevForge targets tool-chain engineers who need reproducibility and debuggability. Explicit state transitions and typed Protocols eliminate hidden conversational state drift. The executor boundary allows AI CLI tools to evolve independently from the orchestration kernel."
+  },
+  "errc_highlights": {
+    "must_have": [
+      "CAP001 — LangGraph orchestration kernel (run_cycle entry point)",
+      "CAP002 — Role-driven work package dispatch",
+      "CAP003 — Pluggable executor adapter Protocol",
+      "CAP004 — Explicit work package lifecycle (9 statuses)",
+      "CAP007 — Four-layer persistence for cycle resume"
+    ],
+    "differentiators": [
+      "Seam governance as first-class object (CAP005) — raw LangGraph has no concept of cross-project interface contracts",
+      "Incremental requirement patching (CAP006) — treats change as structured events, not chat drift",
+      "URI-based context pull (CAP008) — selective context injection prevents token bloat across 200k-context executors",
+      "Role registry separates responsibility from executor (CAP002) — same role can run on claude_code or codex without changing plans",
+      "LLM-driven retry routing (CAP004) — switch_executor/requeue/block/replan/final_fail as explicit retry actions"
+    ],
+    "eliminate": [
+      "No UI layer (PLAN.md Phase 1 scope: 'Phase 1 does not require: full UI')",
+      "No vector database for core runtime recovery (PLAN.md: 'The orchestration kernel should not depend on a vector database')",
+      "No payment or licensing code (distribution: open-source Python package via PyPI/uv)",
+      "No direct LLM prompt construction in orchestration layer — executor adapters own prompt format"
+    ],
+    "reduce": [
+      "User interaction minimized to key business decisions only (PLAN.md: 'Ask the user only when...')",
+      "LLM calls reduced by batch strategy: batch concept collection, batch planning, batch dispatch, batch verification",
+      "Config complexity reduced via wizard-style init: LLM_SETUP_PRESETS={auto/offline/live} translate to llm_preferences without exposing field names (src/devforge/main.py:37-39)"
+    ]
+  },
+  "mvp_capabilities": ["CAP001", "CAP002", "CAP003", "CAP004", "CAP007"],
+  "post_launch_capabilities": ["CAP005", "CAP006", "CAP008", "CAP009"]
+}

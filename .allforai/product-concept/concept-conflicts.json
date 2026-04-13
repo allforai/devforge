@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "summary": {
+    "total": 5,
+    "high_severity": 0,
+    "medium_severity": 2,
+    "low_severity": 3
+  },
+  "conflicts": [
+    {
+      "id": "C001",
+      "type": "doc_vs_code",
+      "severity": "low",
+      "title": "README test count outdated: claims '98 passed', actual suite is 256 tests",
+      "description": "README.md line 176 states 'most recent result: 98 passed'. The infrastructure-profile.json (test_count_approx field) and the full test suite catalog document 256 tests across 48 test files. The README has not been updated after significant test suite expansion.",
+      "doc_reference": "README.md:176 — '98 passed'",
+      "code_reference": ".allforai/bootstrap/infrastructure-profile.json:test_infrastructure.test_count_approx — 256",
+      "resolution_hint": "Update README.md test badge line to '256 passed' after next full suite run.",
+      "blocking": false
+    },
+    {
+      "id": "C002",
+      "type": "doc_vs_code",
+      "severity": "medium",
+      "title": "PLAN.md Phase 1 scope says 'adapter interface stubs only' but concrete subprocess adapters are fully implemented",
+      "description": "PLAN.md Planned Deliverables Phase 1 lists 'adapter interface definitions' as a Phase 1 deliverable and relegates 'executor adapters for claude_code and codex' to Phase 2. In practice, ClaudeCodeAdapter, CodexAdapter, PythonAdapter, ClineAdapter, and OpenCodeAdapter are all fully implemented in src/devforge/executors/adapters.py with SubprocessTransport. The project has advanced beyond Phase 1 scope without updating PLAN.md to reflect Phase 2+ completion.",
+      "doc_reference": "PLAN.md:978-988 — Phase 1 deliverables list; PLAN.md:990-993 — Phase 2 includes 'executor adapters for claude_code and codex'",
+      "code_reference": "src/devforge/executors/adapters.py — ClaudeCodeAdapter, CodexAdapter, PythonAdapter, ClineAdapter, OpenCodeAdapter all implemented; src/devforge/executors/subprocess_transport.py — SubprocessTransport fully implemented",
+      "resolution_hint": "Update PLAN.md Phase 1/2 deliverable sections to reflect current implementation state. Consider adding a 'Current Status' section.",
+      "blocking": false
+    },
+    {
+      "id": "C003",
+      "type": "doc_vs_code",
+      "severity": "medium",
+      "title": "PLAN.md Phase 2 includes 'persistence layer and project scheduler' but both are fully implemented",
+      "description": "PLAN.md Phase 2 lists 'persistence layer' and 'project scheduler' as future deliverables. Both are fully implemented: WorkspacePersistence with SQLiteSnapshotStore/EventStore/FileArtifactStore/JsonMemoryStore exists in src/devforge/persistence/, and select_workset() is implemented in src/devforge/scheduler/. This creates a misleading picture of project maturity for new contributors.",
+      "doc_reference": "PLAN.md:990-993 — Phase 2 deliverables: 'persistence layer', 'project scheduler'",
+      "code_reference": "src/devforge/persistence/context.py — build_local_workspace_persistence(); src/devforge/scheduler/workset_selector.py — select_workset()",
+      "resolution_hint": "Mark Phase 2 items as 'completed' in PLAN.md or restructure into 'What is built' vs 'What is planned'.",
+      "blocking": false
+    },
+    {
+      "id": "C004",
+      "type": "module_vs_module",
+      "severity": "low",
+      "title": "executors/stubs.py is now a pure re-export of adapters.py, not a stub implementation",
+      "description": "src/devforge/executors/stubs.py contains only backward-compatible re-exports from adapters.py (ClaudeCodeAdapter, CodexAdapter, PythonAdapter, ClineAdapter, OpenCodeAdapter). The file name 'stubs' implies test-only stub implementations, but the actual test stubs are inline in tests using MockLLMClient + fixture snapshots. This creates naming confusion: 'stubs.py' exports production adapters, not stubs. The file-catalog.json describes it as 'Stub adapter implementations used in test mode to simulate executor responses' — this description is inaccurate.",
+      "doc_reference": ".allforai/bootstrap/file-catalog.json — M002.key_files[10].intent for stubs.py: 'Stub adapter implementations used in test mode to simulate executor responses without calling real CLI tools'",
+      "code_reference": "src/devforge/executors/stubs.py:1-11 — file body is only re-export aliases to adapters.py, no stub logic",
+      "resolution_hint": "Either rename stubs.py to compat.py (backward-compat re-exports) or add actual stub implementations for test isolation. Update file-catalog.json description.",
+      "blocking": false
+    },
+    {
+      "id": "C005",
+      "type": "doc_vs_code",
+      "severity": "low",
+      "title": "PLAN.md role list includes 'interaction_designer' and 'ui_designer' but PLAN.md role system section omits them",
+      "description": "PLAN.md Role System section (line 347) lists 8 initial built-in roles including 'interaction_designer' and 'ui_designer'. The ROLE_REGISTRY in src/devforge/roles/registry.py correctly includes both. However, the PLAN.md executor system section and phase→role→executor examples only reference the 6 operational roles (product_manager, execution_planner, technical_architect, software_engineer, qa_engineer, integration_owner), creating an incomplete picture for contributors.",
+      "doc_reference": "PLAN.md:347-360 — role list includes interaction_designer and ui_designer; PLAN.md:381-394 — executor section examples omit design roles",
+      "code_reference": "src/devforge/roles/registry.py:33-47 — interaction_designer and ui_designer are present with allowed_phases: analysis_design",
+      "resolution_hint": "Minor inconsistency only. PLAN.md executor section examples could mention that design roles map to claude_code/opencode in analysis_design phase.",
+      "blocking": false
+    }
+  ]
+}

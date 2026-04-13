@@ -1,0 +1,10 @@
+{
+  "id": "fix-repl-goal-truncation",
+  "capability": "code-edit",
+  "goal": "Edit /Users/aa/workspace/devforge/src/devforge/repl.py in the _render_workflow() function (around line 274).\nChange the line:\n    lines = [f\"Workflow: {manifest['goal']}  [{wf_id}]\", \"─\" * 50]\nTo:\n    goal_display = manifest['goal'][:80] + \"\\u2026\" if len(manifest['goal']) > 80 else manifest['goal']\n    lines = [f\"Workflow: {goal_display}  [{wf_id}]\", \"─\" * 50]\n\nNo other changes.",
+  "exit_artifacts": [],
+  "knowledge_refs": [],
+  "executor": "codex",
+  "mode": null,
+  "depends_on": []
+}
